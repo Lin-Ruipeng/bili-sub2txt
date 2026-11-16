@@ -95,7 +95,8 @@ class TestLogin:
         sessdata = login(t, poll_interval=0.01, max_wait=5, _sleep=lambda _: None)
         assert sessdata == "this_is_a_long_cookie_sessdata"
 
-    def test_on_status_callback(self):
+    def test_on_status_callback(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("VTT2TXT_SESSION_DIR", str(tmp_path))
         statuses = []
         t = FakeTransport()
         t.route(GENERATE_URL, body={
