@@ -25,12 +25,21 @@ uv pip install -e .
 ## 使用方法
 
 ```bash
-uv run python -m vtt2txt source_vtt/ target_txt/
+# 转换本地 VTT 文件目录
+uv run python -m vtt2txt convert source_vtt/ target_txt/
+
+# 查看帮助
+uv run python -m vtt2txt --help
+
+# 查看版本
+uv run python -m vtt2txt --version
 ```
 
 参数说明：
 - `source_vtt/`：包含 VTT 文件的输入目录
 - `target_txt/`：转换后 TXT 文件的输出目录
+
+> **破坏性变更**：旧的 `vtt2txt <in> <out>` 用法已变更为 `vtt2txt convert <in> <out>`。
 
 ## 工作原理
 

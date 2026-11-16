@@ -1,25 +1,45 @@
 """CLI for vtt2txt - Convert VTT subtitle files to plain text."""
 
+import argparse
 import sys
 from pathlib import Path
 
+from vtt2txt import __version__
 from vtt2txt.converter import convert_vtt
 from vtt2txt.path_mapper import map_path
 
 
-def main() -> int:
-    """Main CLI entry point.
+def build_parser() -> argparse.ArgumentParser:
+    """Build the top-level argument parser with subcommands."""
+    parser = argparse.ArgumentParser(
+        prog="vtt2txt",
+        description="将 VTT 字幕文件转换为纯文本。",
+    )
+    parser.add_argument(
+        "-V", "--version", action="version", version=f"%(prog)s {__version__}"
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    p_convert = sub.add_parser("convert", help="转换本地 VTT 文件目录")
+    p_convert.add_argument("input_dir", type=Path, help="含 .vtt 文件的输入目录")
+    p_convert.add_argument("output_dir", type=Path, help="TXT 输出目录")
+
+    p_fetch = sub.add_parser("fetch", help="通过 BV 号下载字幕（后续版本提供）")
+    p_fetch.add_argument(
+        "target", nargs="?", help="BV 号或视频链接（后续版本启用）"
+    )
+
+    sub.add_parser("login", help="扫码登录 B 站（后续版本提供）")
+
+    return parser
+
+
+def cmd_convert(input_dir: Path, output_dir: Path) -> int:
+    """Convert all VTT files under *input_dir* into TXT files under *output_dir*.
 
     Returns:
         Exit code (0 for success, 1 for error)
     """
-    if len(sys.argv) != 3:
-        print("Usage: python -m vtt2txt <input_dir> <output_dir>", file=sys.stderr)
-        return 1
-
-    input_dir = Path(sys.argv[1])
-    output_dir = Path(sys.argv[2])
-
     # Validate input directory
     if not input_dir.exists():
         print(f"Error: Input directory does not exist: {input_dir}", file=sys.stderr)
@@ -92,6 +112,30 @@ def main() -> int:
     print(f"\nConversion complete: {success_count} succeeded, {error_count} failed")
 
     return 1 if error_count > 0 else 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Main CLI entry point.
+
+    Args:
+        argv: argument list excluding the program name. When ``None``,
+            ``sys.argv[1:]`` is used.
+
+    Returns:
+        Exit code (0 for success, 1 for error, 2 for usage error).
+    """
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    if args.command == "convert":
+        return cmd_convert(args.input_dir, args.output_dir)
+
+    # fetch / login are placeholders for a future release.
+    print(
+        f"vtt2txt {args.command}: 该功能将在后续版本提供。",
+        file=sys.stderr,
+    )
+    return 1
 
 
 if __name__ == "__main__":
