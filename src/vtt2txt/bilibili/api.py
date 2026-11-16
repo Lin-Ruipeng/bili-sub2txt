@@ -159,6 +159,11 @@ def select_track(
         for t in tracks:
             if t.lan.startswith(lang) or lang.startswith(t.lan):
                 return t
+        # Match after stripping AI prefix (e.g. "ja" → "ai-ja").
+        for t in tracks:
+            base = t.lan.replace("ai-", "", 1) if t.lan.startswith("ai-") else t.lan
+            if base == lang or base.startswith(lang) or lang.startswith(base):
+                return t
         # lan_doc substring.
         for t in tracks:
             if lang in t.lan_doc:
@@ -232,6 +237,10 @@ def fetch_subtitle_json(
                 )
             )
         except NoSubtitle:
+            # When a specific language is requested, surface the error
+            # immediately so the user sees the available tracks.
+            if lang is not None:
+                raise
             continue
 
     if not results:

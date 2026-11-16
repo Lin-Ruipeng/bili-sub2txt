@@ -116,7 +116,7 @@ class TestFetch:
         _setup_video(t, subtitles_per_page={100: []})
         code = fetch(TEST_BV, output_dir=tmp_path, transport=t, sessdata="sess")
         assert code == EXIT_GENERIC
-        assert "没有可用字幕" in capsys.readouterr().err
+        assert "下载失败" in capsys.readouterr().err
 
     def test_output_dir_auto_created(self, tmp_path):
         t = FakeTransport()

@@ -72,11 +72,11 @@ def fetch(
     except LoginExpired:
         print("登录态失效,请运行 vtt2txt login 重新登录。", file=sys.stderr)
         return EXIT_LOGIN
-    except NoSubtitle:
+    except NoSubtitle as e:
         if not sessdata:
             print("需要登录才能下载字幕,请先运行 vtt2txt login。", file=sys.stderr)
             return EXIT_LOGIN
-        print("下载失败:该视频没有可用字幕。", file=sys.stderr)
+        print(f"下载失败: {e}", file=sys.stderr)
         return EXIT_GENERIC
     except VideoNotFound as e:
         print(f"视频不存在: {e}", file=sys.stderr)
