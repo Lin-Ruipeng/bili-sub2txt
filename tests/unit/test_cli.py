@@ -137,20 +137,49 @@ class TestArgumentValidation:
 
 
 class TestSubcommandSkeleton:
-    """fetch / login are placeholders; --version reports the package version."""
-
-    def test_fetch_placeholder_returns_1(self, capsys):
-        exit_code = run_main("fetch", "BV1xx")
-        assert exit_code == 1
-        assert "后续版本" in capsys.readouterr().err
-
-    def test_login_placeholder_returns_1(self, capsys):
-        exit_code = run_main("login")
-        assert exit_code == 1
-        assert "后续版本" in capsys.readouterr().err
+    """--version reports the package version; fetch/login wire to real logic."""
 
     def test_version_flag(self, capsys):
         with pytest.raises(SystemExit) as exc_info:
             run_main("--version")
         assert exc_info.value.code == 0
         assert __version__ in capsys.readouterr().out
+
+    def test_fetch_missing_target_exits_2(self, capsys):
+        with pytest.raises(SystemExit) as exc_info:
+            run_main("fetch")
+        assert exc_info.value.code == 2
+
+    def test_fetch_success(self, tmp_path, monkeypatch):
+        """fetch delegates to fetcher.fetch and propagates the exit code."""
+        from vtt2txt.errors import EXIT_OK
+
+        def fake_fetch(target, *, output_dir, lang, sessdata, **kw):
+            (output_dir / "BV1jJ4m1J7ba").mkdir(parents=True, exist_ok=True)
+            (output_dir / "BV1jJ4m1J7ba" / "test.txt").write_text(
+                "字幕内容", encoding="utf-8"
+            )
+            return EXIT_OK
+
+        monkeypatch.setattr("vtt2txt.cli.fetcher.fetch", fake_fetch)
+        monkeypatch.setattr("vtt2txt.cli.get_sessdata", lambda: "fake_sess")
+        code = run_main("fetch", "BV1jJ4m1J7ba", "--output", str(tmp_path))
+        assert code == 0
+        assert (tmp_path / "BV1jJ4m1J7ba" / "test.txt").read_text(encoding="utf-8") == "字幕内容"
+
+    def test_fetch_no_sessdata_returns_login(self, tmp_path, monkeypatch, capsys):
+        """When fetcher returns EXIT_LOGIN the CLI propagates it."""
+        from vtt2txt.errors import EXIT_LOGIN
+
+        monkeypatch.setattr(
+            "vtt2txt.cli.fetcher.fetch",
+            lambda *a, **kw: EXIT_LOGIN,
+        )
+        monkeypatch.setattr("vtt2txt.cli.get_sessdata", lambda: None)
+        code = run_main("fetch", "BV1jJ4m1J7ba", "--output", str(tmp_path))
+        assert code == 3
+
+    def test_login_success(self, monkeypatch, capsys):
+        monkeypatch.setattr("vtt2txt.cli.auth.login", lambda *a, **kw: "fake_sess")
+        code = run_main("login")
+        assert code == 0
