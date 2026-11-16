@@ -25,12 +25,21 @@ uv pip install -e .
 ## Usage
 
 ```bash
-uv run python -m vtt2txt source_vtt/ target_txt/
+# Convert local VTT files
+uv run python -m vtt2txt convert source_vtt/ target_txt/
+
+# Show help
+uv run python -m vtt2txt --help
+
+# Show version
+uv run python -m vtt2txt --version
 ```
 
 Arguments:
 - `source_vtt/`: Input directory containing VTT files
 - `target_txt/`: Output directory for converted TXT files
+
+> **Breaking change**: The old `vtt2txt <in> <out>` form is now `vtt2txt convert <in> <out>`.
 
 ## How it works
 

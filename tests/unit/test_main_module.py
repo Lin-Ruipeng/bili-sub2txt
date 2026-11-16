@@ -33,11 +33,11 @@ class TestMainModuleExitCode:
             "WEBVTT\n\n00:00:00.100 --> 00:00:01.140\n字幕",
             encoding="utf-8",
         )
-        result = _run(str(input_dir), str(tmp_path / "out"), cwd=str(tmp_path))
+        result = _run("convert", str(input_dir), str(tmp_path / "out"), cwd=str(tmp_path))
         assert result.returncode == 0
         assert (tmp_path / "out" / "a.txt").exists()
 
     def test_missing_input_dir_returns_nonzero(self, tmp_path):
-        result = _run(str(tmp_path / "nope"), str(tmp_path / "out"), cwd=str(tmp_path))
+        result = _run("convert", str(tmp_path / "nope"), str(tmp_path / "out"), cwd=str(tmp_path))
         assert result.returncode != 0
         assert "does not exist" in result.stderr
