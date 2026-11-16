@@ -1,0 +1,116 @@
+"""Tests for the QR-code login flow."""
+
+import pytest
+
+from vtt2txt.bilibili.auth import (
+    _extract_sessdata_from_cookie_header,
+    _extract_sessdata_from_url,
+    login,
+    render_qrcode,
+)
+from vtt2txt.errors import LoginExpired
+from tests.conftest import FakeTransport
+
+GENERATE_URL = "https://passport.bilibili.com/x/passport-login/web/qrcode/generate"
+POLL_URL = "https://passport.bilibili.com/x/passport-login/web/qrcode/poll"
+
+
+class TestExtractSessdata:
+    def test_from_url(self):
+        url = "https://api.bilibili.com/x/passport-login/web/crossDomain?SESSDATA=abc123&DedeUserID=1"
+        assert _extract_sessdata_from_url(url) == "abc123"
+
+    def test_from_url_missing(self):
+        assert _extract_sessdata_from_url("https://example.com/no-sessdata") is None
+
+    def test_from_cookie_header(self):
+        assert _extract_sessdata_from_cookie_header("SESSDATA=xyz; Path=/; HttpOnly") == "xyz"
+
+    def test_from_cookie_header_missing(self):
+        assert _extract_sessdata_from_cookie_header("other=val") is None
+
+    def test_from_cookie_header_none(self):
+        assert _extract_sessdata_from_cookie_header(None) is None
+
+
+class TestRenderQrcode:
+    def test_returns_string(self):
+        result = render_qrcode("https://example.com")
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+
+class TestLogin:
+    def test_success_from_url(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("VTT2TXT_SESSION_DIR", str(tmp_path))
+        t = FakeTransport()
+        t.route(GENERATE_URL, body={
+            "code": 0,
+            "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
+        })
+        t.route_sequence(POLL_URL, [
+            {"body": {"code": 0, "data": {"code": 86101}}},
+            {"body": {"code": 0, "data": {
+                "code": 0,
+                "url": "https://api.bilibili.com/x/passport-login/web/crossDomain?SESSDATA=my_secret",
+            }}},
+        ])
+
+        no_sleep = lambda _: None
+        sessdata = login(t, poll_interval=0.01, max_wait=5, _sleep=no_sleep)
+        assert sessdata == "my_secret"
+
+    def test_qr_expired(self, monkeypatch):
+        t = FakeTransport()
+        t.route(GENERATE_URL, body={
+            "code": 0,
+            "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
+        })
+        t.route(POLL_URL, params={"qrcode_key": "key123"}, body={
+            "code": 0, "data": {"code": 86038},
+        })
+
+        with pytest.raises(LoginExpired, match="二维码已失效"):
+            login(t, poll_interval=0.01, max_wait=5, _sleep=lambda _: None)
+
+    def test_generate_failure(self):
+        t = FakeTransport()
+        t.route(GENERATE_URL, body={"code": -509, "message": "too frequent"})
+        with pytest.raises(LoginExpired, match="二维码生成失败"):
+            login(t, poll_interval=0.01, max_wait=5, _sleep=lambda _: None)
+
+    def test_success_from_set_cookie(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("VTT2TXT_SESSION_DIR", str(tmp_path))
+        t = FakeTransport()
+        t.route(GENERATE_URL, body={
+            "code": 0,
+            "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
+        })
+        t.route_sequence(POLL_URL, [
+            {"body": {"code": 0, "data": {"code": 0, "url": ""}}},
+        ])
+        # Override the first (and only) sequence response with Set-Cookie.
+        t._sequences[POLL_URL][0]._headers["set-cookie"] = "SESSDATA=from_cookie; Path=/"
+
+        sessdata = login(t, poll_interval=0.01, max_wait=5, _sleep=lambda _: None)
+        assert sessdata == "from_cookie"
+
+    def test_on_status_callback(self):
+        statuses = []
+        t = FakeTransport()
+        t.route(GENERATE_URL, body={
+            "code": 0,
+            "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
+        })
+        t.route_sequence(POLL_URL, [
+            {"body": {"code": 0, "data": {"code": 86101}}},
+            {"body": {"code": 0, "data": {
+                "code": 0,
+                "url": "https://api.bilibili.com/?SESSDATA=ok",
+            }}},
+        ])
+
+        login(t, on_status=lambda code, data: statuses.append(code),
+              poll_interval=0.01, max_wait=5, _sleep=lambda _: None)
+        assert 86101 in statuses
+        assert 0 in statuses
