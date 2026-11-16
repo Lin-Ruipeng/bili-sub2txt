@@ -43,9 +43,11 @@ Arguments:
    - Writes the plain text content to the corresponding TXT file
 
 The converter extracts subtitle text by:
-- Identifying timestamp lines (format: `00:00:00.000 --> 00:00:00.000`)
-- Accumulating text lines between timestamps
-- Joining subtitle blocks with blank lines
+- Splitting on blank lines into cues (a block holding several timestamps is split further)
+- Identifying timestamp lines (accepting spec variants: optional hours, `,` as the millisecond separator, and trailing cue settings)
+- Dropping cue identifiers, `WEBVTT` header metadata, and `NOTE` / `STYLE` / `REGION` blocks
+- Stripping inline markup (`<i>`, `<v Speaker>`, ...) and decoding HTML entities
+- Joining subtitle blocks with single newlines
 
 ## Project Structure
 
