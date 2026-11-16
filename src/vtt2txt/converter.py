@@ -1,14 +1,40 @@
 """VTT to TXT converter module."""
 
+import html
 import re
 
-# Regex pattern to match timestamp lines in VTT format
-# Pattern: 00:00:00.000 --> 00:00:00.000
-TIMESTAMP_PATTERN = re.compile(r"^\d{2}:\d{2}:\d{2}\.\d{3} --> \d{2}:\d{2}:\d{2}\.\d{3}$")
+# Regex pattern to match timestamp lines in VTT format.
+# Accepts the variants the WebVTT spec allows:
+#   - hours segment optional:      00:01.140 --> 00:02.980
+#   - '.' or ',' as ms separator:  00:00:01,140 --> 00:00:02,980
+#   - trailing cue settings:       00:00:00.100 --> 00:00:01.140 align:start position:0%
+TIMESTAMP_PATTERN = re.compile(
+    r"^\d{2,}:\d{2}(?::\d{2})?[.,]\d{3}"
+    r"\s*-->\s*"
+    r"\d{2,}:\d{2}(?::\d{2})?[.,]\d{3}"
+    r"(?:\s+.*)?$"
+)
+
+# Block types defined by the WebVTT spec that never carry cue text.
+NON_CUE_PREFIXES = ("NOTE", "STYLE", "REGION")
+
+# Inline cue markup: <i>, <b>, <u>, <ruby>, <c.classname>, <v Speaker>,
+# and inline timestamps such as <00:00:01.000>.
+INLINE_TAG_PATTERN = re.compile(r"<[^>]*>")
+
+
+def _clean_line(line: str) -> str:
+    """Strip inline markup and decode HTML entities from a subtitle line."""
+    return html.unescape(INLINE_TAG_PATTERN.sub("", line)).replace("\u200b", "").strip()
 
 
 def convert_vtt(content: str) -> str:
     """Convert VTT subtitle content to plain text.
+
+    Cues are delimited by blank lines as the WebVTT spec requires, with an
+    additional split on timestamp lines so that files which omit the blank
+    separator are still handled. Cue identifiers, WEBVTT header metadata,
+    NOTE/STYLE/REGION blocks, inline markup and HTML entities are all dropped.
 
     Args:
         content: The VTT file content as a string.
@@ -17,37 +43,48 @@ def convert_vtt(content: str) -> str:
         Plain text with subtitle blocks joined by newlines.
         Returns empty string if no subtitles found.
     """
-    lines = content.split("\n")
+    # Normalise line endings and drop a UTF-8 BOM if present.
+    normalized = content.replace("\r\n", "\n").replace("\r", "\n").lstrip("\ufeff")
+
     subtitle_blocks = []
-    current_block_lines = []
-    in_subtitle_block = False
 
-    for line in lines:
-        stripped = line.strip()
-
-        # Skip empty lines
-        if not stripped:
+    for raw_block in re.split(r"\n\s*\n", normalized):
+        lines = [line.strip() for line in raw_block.split("\n") if line.strip()]
+        if not lines:
             continue
 
-        # Skip WEBVTT header (case-sensitive)
-        if stripped == "WEBVTT":
+        # Skip WEBVTT header (optionally followed by a description on the same line).
+        if lines[0].startswith("WEBVTT"):
+            lines = lines[1:]
+        if not lines:
             continue
 
-        # Check if line is a timestamp
-        if TIMESTAMP_PATTERN.match(stripped):
-            # When we hit a new timestamp, save the current block if it has content
-            if current_block_lines:
-                subtitle_blocks.append("\n".join(current_block_lines))
-                current_block_lines = []
-            in_subtitle_block = True
+        # NOTE / STYLE / REGION blocks never contain subtitle text.
+        if lines[0].startswith(NON_CUE_PREFIXES):
             continue
 
-        # Keep subtitle text lines (accumulate in current block)
-        if in_subtitle_block:
-            current_block_lines.append(stripped)
+        current_block_lines = []
+        in_cue = False
 
-    # Don't forget the last block
-    if current_block_lines:
-        subtitle_blocks.append("\n".join(current_block_lines))
+        for line in lines:
+            # A timestamp starts a new cue: flush the text collected so far.
+            if TIMESTAMP_PATTERN.match(line):
+                if current_block_lines:
+                    subtitle_blocks.append("\n".join(current_block_lines))
+                    current_block_lines = []
+                in_cue = True
+                continue
+
+            # Anything before the first timestamp in a block is header metadata
+            # (Kind:, Language:, ...) or a cue identifier, never subtitle text.
+            if not in_cue:
+                continue
+
+            cleaned = _clean_line(line)
+            if cleaned:
+                current_block_lines.append(cleaned)
+
+        if current_block_lines:
+            subtitle_blocks.append("\n".join(current_block_lines))
 
     return "\n".join(subtitle_blocks)
