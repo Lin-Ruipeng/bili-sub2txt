@@ -52,13 +52,13 @@ class TestLogin:
             {"body": {"code": 0, "data": {"code": 86101}}},
             {"body": {"code": 0, "data": {
                 "code": 0,
-                "url": "https://api.bilibili.com/x/passport-login/web/crossDomain?SESSDATA=my_secret",
+                "url": "https://api.bilibili.com/x/passport-login/web/crossDomain?SESSDATA=this_is_a_long_enough_sessdata_value",
             }}},
         ])
 
         no_sleep = lambda _: None
         sessdata = login(t, poll_interval=0.01, max_wait=5, _sleep=no_sleep)
-        assert sessdata == "my_secret"
+        assert sessdata == "this_is_a_long_enough_sessdata_value"
 
     def test_qr_expired(self, monkeypatch):
         t = FakeTransport()
@@ -90,10 +90,10 @@ class TestLogin:
             {"body": {"code": 0, "data": {"code": 0, "url": ""}}},
         ])
         # Override the first (and only) sequence response with Set-Cookie.
-        t._sequences[POLL_URL][0]._headers["set-cookie"] = "SESSDATA=from_cookie; Path=/"
+        t._sequences[POLL_URL][0]._headers["set-cookie"] = "SESSDATA=this_is_a_long_cookie_sessdata; Path=/"
 
         sessdata = login(t, poll_interval=0.01, max_wait=5, _sleep=lambda _: None)
-        assert sessdata == "from_cookie"
+        assert sessdata == "this_is_a_long_cookie_sessdata"
 
     def test_on_status_callback(self):
         statuses = []
@@ -106,7 +106,7 @@ class TestLogin:
             {"body": {"code": 0, "data": {"code": 86101}}},
             {"body": {"code": 0, "data": {
                 "code": 0,
-                "url": "https://api.bilibili.com/?SESSDATA=ok",
+                "url": "https://api.bilibili.com/?SESSDATA=this_is_a_long_ok_sessdata",
             }}},
         ])
 

@@ -104,7 +104,13 @@ def list_subtitle_tracks(
     except Exception:
         pass  # Unsigned fallback — the caller should be aware.
 
-    resp = t.request("GET", PLAYER_URL, params=params, cookies=cookies)
+    resp = t.request(
+        "GET",
+        PLAYER_URL,
+        params=params,
+        cookies=cookies,
+        headers={"Referer": "https://www.bilibili.com"},
+    )
     data = resp.json()
     code = data.get("code", -1)
     if code == -101:
@@ -181,9 +187,13 @@ def download_subtitle(
     if track is None:
         raise ValueError("track is required")
     t = transport or default_transport()
+    url = track.subtitle_url
+    # Bilibili returns protocol-relative URLs (//aisubtitle.hdslb.com/...).
+    if url.startswith("//"):
+        url = "https:" + url
     resp = t.request(
         "GET",
-        track.subtitle_url,
+        url,
         headers={"Referer": "https://www.bilibili.com"},
     )
     return resp.text

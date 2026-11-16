@@ -103,13 +103,33 @@ def login(
 
         if poll_code == 0:
             # Success — try data.url first, then Set-Cookie header.
-            sessdata = _extract_sessdata_from_url(poll_data.get("url", ""))
+            data_url = poll_data.get("url", "")
+            sessdata = _extract_sessdata_from_url(data_url)
+            source = "data.url"
             if not sessdata:
                 sessdata = _extract_sessdata_from_cookie_header(
                     resp.header("Set-Cookie")
                 )
-            if not sessdata:
-                raise LoginExpired("登录成功但未能提取 SESSDATA")
+                source = "Set-Cookie"
+
+            # Diagnostic output (always print on success for debugging).
+            print(
+                f"[debug] extract source={source} len={len(sessdata or '')} "
+                f"url={data_url[:200]}",
+                file=sys.stderr,
+            )
+            set_cookie_raw = resp.header("Set-Cookie") or ""
+            print(
+                f"[debug] Set-Cookie={set_cookie_raw[:300]}",
+                file=sys.stderr,
+            )
+
+            if not sessdata or len(sessdata) < 20:
+                # SESSDATA too short — likely extracted the wrong field.
+                raise LoginExpired(
+                    f"登录成功但未能提取有效的 SESSDATA "
+                    f"(提取到 {len(sessdata or '')} 字符, source={source})"
+                )
 
             save_session(sessdata)
             print("登录成功,凭证已保存。", file=sys.stderr)

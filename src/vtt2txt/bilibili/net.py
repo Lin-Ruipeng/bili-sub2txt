@@ -52,10 +52,26 @@ def _build_cookie_header(cookies: dict[str, str] | None) -> str:
     return "; ".join(f"{k}={v}" for k, v in cookies.items())
 
 
+def _merge_headers(raw: Any) -> dict[str, str]:
+    """Merge HTTP headers into a dict, joining duplicates with '; '.
+
+    urllib returns multiple ``Set-Cookie`` headers as separate tuples;
+    a plain dict comprehension would silently drop all but the last.
+    """
+    merged: dict[str, str] = {}
+    for k, v in raw:
+        kl = k.lower()
+        if kl in merged:
+            merged[kl] += "; " + v
+        else:
+            merged[kl] = v
+    return merged
+
+
 class UrllibTransport:
     """Production transport backed by ``urllib.request``."""
 
-    def __init__(self, timeout: float = 10.0, user_agent: str = "vtt2txt/0.1.0"):
+    def __init__(self, timeout: float = 10.0, user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"):
         self.timeout = timeout
         self.user_agent = user_agent
 
@@ -88,11 +104,11 @@ class UrllibTransport:
                 req, timeout=timeout or self.timeout
             ) as resp:
                 body = resp.read()
-                resp_headers = {k: v for k, v in resp.getheaders()}
+                resp_headers = _merge_headers(resp.getheaders())
                 return HttpResponse(resp.status, body, resp_headers)
         except urllib.error.HTTPError as e:
             body = e.read()
-            resp_headers = {k: v for k, v in e.headers.items()}
+            resp_headers = _merge_headers(e.headers.items())
             return HttpResponse(e.code, body, resp_headers)
         except urllib.error.URLError as e:
             from vtt2txt.errors import NetworkError
