@@ -51,6 +51,23 @@ def main() -> int:
             # Convert content
             converted = convert_vtt(content)
 
+            # Never write an empty file and report it as a success. A file that
+            # does contain cue timestamps but yields no text is treated as a
+            # failure, so unsupported formats surface instead of failing silently.
+            if not converted.strip():
+                if "-->" in content:
+                    print(
+                        f"  Warning: found cue timestamps but extracted no text: {vtt_file}",
+                        file=sys.stderr,
+                    )
+                    error_count += 1
+                else:
+                    print(
+                        f"  Warning: no subtitle text found in file: {vtt_file}",
+                        file=sys.stderr,
+                    )
+                continue
+
             # Map output path
             output_path = map_path(vtt_file, input_dir, output_dir)
 
