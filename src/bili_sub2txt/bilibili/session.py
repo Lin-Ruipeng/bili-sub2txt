@@ -1,9 +1,9 @@
 """Login-session persistence for SESSDATA.
 
 The session file is stored at:
-  - ``$VTT2TXT_SESSION_DIR/session.json`` (if the env var is set — for tests)
-  - ``%APPDATA%/vtt2txt/session.json`` on Windows
-  - ``~/.config/vtt2txt/session.json`` elsewhere
+  - ``$BILI_SUB2TXT_SESSION_DIR/session.json`` (if the env var is set — for tests)
+  - ``%APPDATA%/bili_sub2txt/session.json`` on Windows
+  - ``~/.config/bili_sub2txt/session.json`` elsewhere
 
 Only ``SESSDATA`` is persisted; other cookies (``bili_jct``, etc.) are
 intentionally discarded to minimise the sensitive-data footprint.
@@ -14,7 +14,7 @@ import os
 import sys
 from pathlib import Path
 
-SESSION_DIR_ENV = "VTT2TXT_SESSION_DIR"
+SESSION_DIR_ENV = "BILI_SUB2TXT_SESSION_DIR"
 SESSION_FILENAME = "session.json"
 
 
@@ -26,9 +26,9 @@ def session_path() -> Path:
 
     if sys.platform == "win32":
         base = os.environ.get("APPDATA") or str(Path.home() / "AppData" / "Roaming")
-        return Path(base) / "vtt2txt" / SESSION_FILENAME
+        return Path(base) / "bili-sub2txt" / SESSION_FILENAME
 
-    return Path.home() / ".config" / "vtt2txt" / SESSION_FILENAME
+    return Path.home() / ".config" / "bili-sub2txt" / SESSION_FILENAME
 
 
 def load_session() -> dict[str, str]:

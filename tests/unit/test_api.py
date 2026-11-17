@@ -2,7 +2,7 @@
 
 import pytest
 
-from vtt2txt.bilibili.api import (
+from bili_sub2txt.bilibili.api import (
     FetchedSubtitle,
     SubtitleTrack,
     VideoInfo,
@@ -13,7 +13,7 @@ from vtt2txt.bilibili.api import (
     parse_target,
     select_track,
 )
-from vtt2txt.errors import LoginExpired, NoSubtitle, VideoNotFound
+from bili_sub2txt.errors import LoginExpired, NoSubtitle, VideoNotFound
 from tests.conftest import FakeTransport
 
 VIEW_URL = "https://api.bilibili.com/x/web-interface/view"

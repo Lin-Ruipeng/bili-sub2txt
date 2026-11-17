@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from vtt2txt.cli import main
+from bili_sub2txt.cli import main
 from tests.conftest import FakeTransport
 
 VIEW_URL = "https://api.bilibili.com/x/web-interface/view"
@@ -47,8 +47,8 @@ class TestFetchIntegration:
     def test_single_page_e2e(self, tmp_path, monkeypatch):
         t = FakeTransport()
         _wire_transport(t)
-        monkeypatch.setattr("vtt2txt.bilibili.net._default", t)
-        monkeypatch.setattr("vtt2txt.cli.get_sessdata", lambda: "fake_sess")
+        monkeypatch.setattr("bili_sub2txt.bilibili.net._default", t)
+        monkeypatch.setattr("bili_sub2txt.cli.get_sessdata", lambda: "fake_sess")
 
         code = main(["fetch", TEST_BV, "--output", str(tmp_path)])
         assert code == 0
@@ -62,8 +62,8 @@ class TestFetchIntegration:
             {"cid": 100, "page": 1, "part": "上集"},
             {"cid": 200, "page": 2, "part": "下集"},
         ])
-        monkeypatch.setattr("vtt2txt.bilibili.net._default", t)
-        monkeypatch.setattr("vtt2txt.cli.get_sessdata", lambda: "fake_sess")
+        monkeypatch.setattr("bili_sub2txt.bilibili.net._default", t)
+        monkeypatch.setattr("bili_sub2txt.cli.get_sessdata", lambda: "fake_sess")
 
         code = main(["fetch", TEST_BV, "--output", str(tmp_path)])
         assert code == 0
@@ -75,8 +75,8 @@ class TestFetchIntegration:
         _wire_transport(t, subtitle_body={
             "body": [{"from": 0, "to": 3, "content": "很短"}]
         })
-        monkeypatch.setattr("vtt2txt.bilibili.net._default", t)
-        monkeypatch.setattr("vtt2txt.cli.get_sessdata", lambda: "fake_sess")
+        monkeypatch.setattr("bili_sub2txt.bilibili.net._default", t)
+        monkeypatch.setattr("bili_sub2txt.cli.get_sessdata", lambda: "fake_sess")
 
         code = main(["fetch", TEST_BV, "--output", str(tmp_path)])
         assert code == 0

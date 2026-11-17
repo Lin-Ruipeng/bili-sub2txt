@@ -2,8 +2,8 @@
 
 import pytest
 
-from vtt2txt import __version__
-from vtt2txt.cli import main
+from bili_sub2txt import __version__
+from bili_sub2txt.cli import main
 
 
 def run_main(*argv):
@@ -152,7 +152,7 @@ class TestSubcommandSkeleton:
 
     def test_fetch_success(self, tmp_path, monkeypatch):
         """fetch delegates to fetcher.fetch and propagates the exit code."""
-        from vtt2txt.errors import EXIT_OK
+        from bili_sub2txt.errors import EXIT_OK
 
         def fake_fetch(target, *, output_dir, lang, sessdata, **kw):
             (output_dir / "BV1jJ4m1J7ba").mkdir(parents=True, exist_ok=True)
@@ -161,25 +161,25 @@ class TestSubcommandSkeleton:
             )
             return EXIT_OK
 
-        monkeypatch.setattr("vtt2txt.cli.fetcher.fetch", fake_fetch)
-        monkeypatch.setattr("vtt2txt.cli.get_sessdata", lambda: "fake_sess")
+        monkeypatch.setattr("bili_sub2txt.cli.fetcher.fetch", fake_fetch)
+        monkeypatch.setattr("bili_sub2txt.cli.get_sessdata", lambda: "fake_sess")
         code = run_main("fetch", "BV1jJ4m1J7ba", "--output", str(tmp_path))
         assert code == 0
         assert (tmp_path / "BV1jJ4m1J7ba" / "test.txt").read_text(encoding="utf-8") == "字幕内容"
 
     def test_fetch_no_sessdata_returns_login(self, tmp_path, monkeypatch, capsys):
         """When fetcher returns EXIT_LOGIN the CLI propagates it."""
-        from vtt2txt.errors import EXIT_LOGIN
+        from bili_sub2txt.errors import EXIT_LOGIN
 
         monkeypatch.setattr(
-            "vtt2txt.cli.fetcher.fetch",
+            "bili_sub2txt.cli.fetcher.fetch",
             lambda *a, **kw: EXIT_LOGIN,
         )
-        monkeypatch.setattr("vtt2txt.cli.get_sessdata", lambda: None)
+        monkeypatch.setattr("bili_sub2txt.cli.get_sessdata", lambda: None)
         code = run_main("fetch", "BV1jJ4m1J7ba", "--output", str(tmp_path))
         assert code == 3
 
     def test_login_success(self, monkeypatch, capsys):
-        monkeypatch.setattr("vtt2txt.cli.auth.login", lambda *a, **kw: "fake_sess")
+        monkeypatch.setattr("bili_sub2txt.cli.auth.login", lambda *a, **kw: "fake_sess")
         code = run_main("login")
         assert code == 0

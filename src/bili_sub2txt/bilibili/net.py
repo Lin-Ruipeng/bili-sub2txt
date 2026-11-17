@@ -111,11 +111,11 @@ class UrllibTransport:
             resp_headers = _merge_headers(e.headers.items())
             return HttpResponse(e.code, body, resp_headers)
         except urllib.error.URLError as e:
-            from vtt2txt.errors import NetworkError
+            from bili_sub2txt.errors import NetworkError
 
             raise NetworkError(f"网络请求失败: {e.reason}") from e
         except TimeoutError as e:
-            from vtt2txt.errors import NetworkError
+            from bili_sub2txt.errors import NetworkError
 
             raise NetworkError(f"请求超时: {e}") from e
 

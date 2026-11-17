@@ -1,8 +1,8 @@
-"""Regression tests for the `python -m vtt2txt` entry point exit code.
+"""Regression tests for the `python -m bili_sub2txt` entry point exit code.
 
 These spawn a real subprocess because the bug is specifically about the
 entry script discarding main()'s return value — only an actual
-`python -m vtt2txt` invocation exercises that path.
+`python -m bili_sub2txt` invocation exercises that path.
 """
 
 import os
@@ -16,7 +16,7 @@ ENV = {**os.environ, "PYTHONPATH": str(SRC_DIR)}
 
 def _run(*args: str, cwd: str) -> subprocess.CompletedProcess:
     return subprocess.run(
-        [sys.executable, "-m", "vtt2txt", *args],
+        [sys.executable, "-m", "bili_sub2txt", *args],
         cwd=cwd,
         env=ENV,
         capture_output=True,

@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
 
-from vtt2txt.bilibili.net import Transport, default_transport
-from vtt2txt.bilibili.wbi import fetch_wbi_keys, sign
-from vtt2txt.errors import BiliError, LoginExpired, NoSubtitle, VideoNotFound
+from bili_sub2txt.bilibili.net import Transport, default_transport
+from bili_sub2txt.bilibili.wbi import fetch_wbi_keys, sign
+from bili_sub2txt.errors import BiliError, LoginExpired, NoSubtitle, VideoNotFound
 
 BV_PATTERN = re.compile(r"BV[0-9A-Za-z]{10}")
 
@@ -114,7 +114,7 @@ def list_subtitle_tracks(
     data = resp.json()
     code = data.get("code", -1)
     if code == -101:
-        raise LoginExpired("登录态失效,请运行 vtt2txt login 重新登录")
+        raise LoginExpired("登录态失效,请运行 bili_sub2txt login 重新登录")
     if code != 0:
         raise BiliError(
             f"player 接口失败: code={code} {data.get('message', '')}"

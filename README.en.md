@@ -1,4 +1,4 @@
-# vtt2txt
+# bili-sub2txt
 
 A Python tool to convert Bilibili subtitles to plain text. Supports both local VTT file batch conversion and direct download from Bilibili via BV number.
 
@@ -31,7 +31,7 @@ pip install -e ".[dev]"
 ### Convert local VTT files
 
 ```bash
-vtt2txt convert source_vtt/ target_txt/
+bili-sub2txt convert source_vtt/ target_txt/
 ```
 
 - `source_vtt/`: input directory containing `.vtt` files (searched recursively)
@@ -41,16 +41,16 @@ vtt2txt convert source_vtt/ target_txt/
 
 ```bash
 # First-time use requires QR-code login
-vtt2txt login
+bili-sub2txt login
 
 # Download by BV number
-vtt2txt fetch BV1jJ4m1J7ba
+bili-sub2txt fetch BV1jJ4m1J7ba
 
 # Download by full URL
-vtt2txt fetch https://www.bilibili.com/video/BV1jJ4m1J7ba/
+bili-sub2txt fetch https://www.bilibili.com/video/BV1jJ4m1J7ba/
 
 # Specify output directory and subtitle language
-vtt2txt fetch BV1jJ4m1J7ba --output my_output/ --lang zh-Hans
+bili-sub2txt fetch BV1jJ4m1J7ba --output my_output/ --lang zh-Hans
 ```
 
 **fetch options:**
@@ -61,8 +61,8 @@ vtt2txt fetch BV1jJ4m1J7ba --output my_output/ --lang zh-Hans
 ### Other
 
 ```bash
-vtt2txt --help       # show help
-vtt2txt --version    # show version
+bili-sub2txt --help       # show help
+bili-sub2txt --version    # show version
 ```
 
 ### Exit codes
@@ -91,10 +91,10 @@ vtt2txt --version    # show version
 ## Project structure
 
 ```
-vtt2txt/
-├── src/vtt2txt/
+bili-sub2txt/
+├── src/bili_sub2txt/
 │   ├── __init__.py          # version
-│   ├── __main__.py          # python -m vtt2txt entry
+│   ├── __main__.py          # python -m bili_sub2txt entry
 │   ├── cli.py               # argparse subcommands (convert/fetch/login)
 │   ├── converter.py         # VTT-to-TXT + Bilibili-JSON-to-TXT
 │   ├── path_mapper.py       # path mapping
@@ -130,7 +130,7 @@ All tests run offline (`FakeTransport` mock) — no real network or credentials 
 ## Security
 
 - `SESSDATA` is equivalent to your Bilibili account login — treat as a high-sensitivity credential
-- Session is stored at `~/.config/vtt2txt/session.json` (Windows: `%APPDATA%/vtt2txt/session.json`), containing only SESSDATA, with best-effort `0600` permissions
+- Session is stored at `~/.config/bili-sub2txt/session.json` (Windows: `%APPDATA%/bili-sub2txt/session.json`), containing only SESSDATA, with best-effort `0600` permissions
 - SESSDATA is sent only via the Cookie header, never in URLs; automatically redacted in logs and error messages
 - On Windows, file permission protection is limited — mind the directory ACL
 

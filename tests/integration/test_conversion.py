@@ -1,7 +1,7 @@
 """Integration tests for end-to-end VTT to TXT conversion."""
 
-from vtt2txt.converter import convert_vtt
-from vtt2txt.path_mapper import map_path
+from bili_sub2txt.converter import convert_vtt
+from bili_sub2txt.path_mapper import map_path
 
 
 class TestSingleFileConversion:

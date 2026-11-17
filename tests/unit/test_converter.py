@@ -1,5 +1,5 @@
 import pytest
-from vtt2txt.converter import convert_vtt
+from bili_sub2txt.converter import convert_vtt
 
 
 class TestConvertVtt:

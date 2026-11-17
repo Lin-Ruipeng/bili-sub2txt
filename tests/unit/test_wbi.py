@@ -2,7 +2,7 @@
 
 import hashlib
 
-from vtt2txt.bilibili.wbi import MIXIN_KEY_ENC_TAB, get_mixin_key, sign
+from bili_sub2txt.bilibili.wbi import MIXIN_KEY_ENC_TAB, get_mixin_key, sign
 
 
 class TestMixinKeyEncTab:

@@ -2,7 +2,7 @@
 
 import pytest
 
-from vtt2txt.bilibili.net import HttpResponse, default_transport, set_default_transport
+from bili_sub2txt.bilibili.net import HttpResponse, default_transport, set_default_transport
 from tests.conftest import FakeTransport
 
 

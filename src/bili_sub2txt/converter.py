@@ -4,7 +4,7 @@ import html
 import json
 import re
 
-from vtt2txt.errors import BiliError
+from bili_sub2txt.errors import BiliError
 
 # Regex pattern to match timestamp lines in VTT format.
 # Accepts the variants the WebVTT spec allows:
@@ -103,7 +103,7 @@ def convert_bili_json(content: str) -> str:
     rules (single ``\\n`` join, no trailing newline) match
     :func:`convert_vtt`.
 
-    Raises :class:`~vtt2txt.errors.BiliError` if the JSON is unparseable
+    Raises :class:`~bili_sub2txt.errors.BiliError` if the JSON is unparseable
     or if ``body`` is non-empty but every element lacks a recognised text
     field (field-drift protection).
     """

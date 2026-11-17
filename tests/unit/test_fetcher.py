@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from vtt2txt.bilibili.fetcher import _cross_check_duration, fetch
-from vtt2txt.errors import EXIT_GENERIC, EXIT_LOGIN, EXIT_OK
+from bili_sub2txt.bilibili.fetcher import _cross_check_duration, fetch
+from bili_sub2txt.errors import EXIT_GENERIC, EXIT_LOGIN, EXIT_OK
 from tests.conftest import FakeTransport
 
 VIEW_URL = "https://api.bilibili.com/x/web-interface/view"

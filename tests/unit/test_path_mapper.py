@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from vtt2txt.path_mapper import map_path
+from bili_sub2txt.path_mapper import map_path
 
 
 class TestMapPath:

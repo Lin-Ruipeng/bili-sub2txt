@@ -15,9 +15,9 @@ import sys
 import time
 from urllib.parse import parse_qs, urlparse
 
-from vtt2txt.bilibili.net import Transport, default_transport
-from vtt2txt.bilibili.session import save_session
-from vtt2txt.errors import LoginExpired
+from bili_sub2txt.bilibili.net import Transport, default_transport
+from bili_sub2txt.bilibili.session import save_session
+from bili_sub2txt.errors import LoginExpired
 
 GENERATE_URL = "https://passport.bilibili.com/x/passport-login/web/qrcode/generate"
 POLL_URL = "https://passport.bilibili.com/x/passport-login/web/qrcode/poll"
@@ -136,7 +136,7 @@ def login(
             return sessdata
 
         if poll_code == 86038:
-            raise LoginExpired("二维码已失效,请重新运行 vtt2txt login")
+            raise LoginExpired("二维码已失效,请重新运行 bili_sub2txt login")
 
         if poll_code == 86090:
             print("已扫码,请在手机上确认登录。", file=sys.stderr)
@@ -145,4 +145,4 @@ def login(
         _sleep(poll_interval)
         elapsed += poll_interval
 
-    raise LoginExpired("登录超时,请重新运行 vtt2txt login")
+    raise LoginExpired("登录超时,请重新运行 bili_sub2txt login")

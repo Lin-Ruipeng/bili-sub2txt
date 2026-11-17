@@ -4,10 +4,10 @@ import json
 import sys
 from pathlib import Path
 
-from vtt2txt.bilibili.api import FetchedSubtitle, VideoInfo, fetch_subtitle_json, parse_target
-from vtt2txt.bilibili.net import Transport, default_transport
-from vtt2txt.converter import convert_bili_json
-from vtt2txt.errors import (
+from bili_sub2txt.bilibili.api import FetchedSubtitle, VideoInfo, fetch_subtitle_json, parse_target
+from bili_sub2txt.bilibili.net import Transport, default_transport
+from bili_sub2txt.converter import convert_bili_json
+from bili_sub2txt.errors import (
     BiliError,
     EXIT_GENERIC,
     EXIT_LOGIN,
@@ -17,7 +17,7 @@ from vtt2txt.errors import (
     NoSubtitle,
     VideoNotFound,
 )
-from vtt2txt.naming import build_output_path
+from bili_sub2txt.naming import build_output_path
 
 
 def _cross_check_duration(json_text: str, expected_duration: int) -> bool:
@@ -70,11 +70,11 @@ def fetch(
     try:
         info, subtitles = fetch_subtitle_json(t, sessdata, bvid, lang=lang)
     except LoginExpired:
-        print("登录态失效,请运行 vtt2txt login 重新登录。", file=sys.stderr)
+        print("登录态失效,请运行 bili_sub2txt login 重新登录。", file=sys.stderr)
         return EXIT_LOGIN
     except NoSubtitle as e:
         if not sessdata:
-            print("需要登录才能下载字幕,请先运行 vtt2txt login。", file=sys.stderr)
+            print("需要登录才能下载字幕,请先运行 bili_sub2txt login。", file=sys.stderr)
             return EXIT_LOGIN
         print(f"下载失败: {e}", file=sys.stderr)
         return EXIT_GENERIC

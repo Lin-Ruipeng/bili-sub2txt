@@ -2,7 +2,7 @@
 
 import pytest
 
-from vtt2txt.errors import (
+from bili_sub2txt.errors import (
     EXIT_GENERIC,
     EXIT_LOGIN,
     EXIT_OK,

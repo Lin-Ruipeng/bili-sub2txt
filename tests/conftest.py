@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from vtt2txt.bilibili.net import HttpResponse
+from bili_sub2txt.bilibili.net import HttpResponse
 
 
 @dataclass

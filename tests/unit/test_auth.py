@@ -2,13 +2,13 @@
 
 import pytest
 
-from vtt2txt.bilibili.auth import (
+from bili_sub2txt.bilibili.auth import (
     _extract_sessdata_from_cookie_header,
     _extract_sessdata_from_url,
     login,
     render_qrcode,
 )
-from vtt2txt.errors import LoginExpired
+from bili_sub2txt.errors import LoginExpired
 from tests.conftest import FakeTransport
 
 GENERATE_URL = "https://passport.bilibili.com/x/passport-login/web/qrcode/generate"
@@ -42,7 +42,7 @@ class TestRenderQrcode:
 
 class TestLogin:
     def test_success_from_url(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("VTT2TXT_SESSION_DIR", str(tmp_path))
+        monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
         t = FakeTransport()
         t.route(GENERATE_URL, body={
             "code": 0,
@@ -80,7 +80,7 @@ class TestLogin:
             login(t, poll_interval=0.01, max_wait=5, _sleep=lambda _: None)
 
     def test_success_from_set_cookie(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("VTT2TXT_SESSION_DIR", str(tmp_path))
+        monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
         t = FakeTransport()
         t.route(GENERATE_URL, body={
             "code": 0,
@@ -96,7 +96,7 @@ class TestLogin:
         assert sessdata == "this_is_a_long_cookie_sessdata"
 
     def test_on_status_callback(self, tmp_path, monkeypatch):
-        monkeypatch.setenv("VTT2TXT_SESSION_DIR", str(tmp_path))
+        monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
         statuses = []
         t = FakeTransport()
         t.route(GENERATE_URL, body={

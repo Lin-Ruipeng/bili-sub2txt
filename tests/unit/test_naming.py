@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from vtt2txt.naming import build_output_path, sanitize_filename
+from bili_sub2txt.naming import build_output_path, sanitize_filename
 
 
 class TestSanitizeFilename:

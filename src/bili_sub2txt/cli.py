@@ -1,21 +1,21 @@
-"""CLI for vtt2txt — convert VTT files or fetch Bilibili subtitles."""
+"""CLI for bili_sub2txt — convert VTT files or fetch Bilibili subtitles."""
 
 import argparse
 import sys
 from pathlib import Path
 
-from vtt2txt import __version__
-from vtt2txt.bilibili import auth, fetcher
-from vtt2txt.bilibili.session import get_sessdata
-from vtt2txt.converter import convert_vtt
-from vtt2txt.errors import EXIT_GENERIC, EXIT_LOGIN, EXIT_OK, LoginExpired
-from vtt2txt.path_mapper import map_path
+from bili_sub2txt import __version__
+from bili_sub2txt.bilibili import auth, fetcher
+from bili_sub2txt.bilibili.session import get_sessdata
+from bili_sub2txt.converter import convert_vtt
+from bili_sub2txt.errors import EXIT_GENERIC, EXIT_LOGIN, EXIT_OK, LoginExpired
+from bili_sub2txt.path_mapper import map_path
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the top-level argument parser with subcommands."""
     parser = argparse.ArgumentParser(
-        prog="vtt2txt",
+        prog="bili_sub2txt",
         description="将 VTT 字幕文件转换为纯文本,或从 Bilibili 下载字幕。",
     )
     parser.add_argument(

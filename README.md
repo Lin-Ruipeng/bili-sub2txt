@@ -1,4 +1,4 @@
-# vtt2txt
+# bili-sub2txt
 
 一款用于将 Bilibili 字幕转换为纯文本的 Python 工具。支持本地 VTT 文件批量转换，也可通过 BV 号直接下载 B 站字幕并转换。
 
@@ -31,7 +31,7 @@ pip install -e ".[dev]"
 ### 转换本地 VTT 文件
 
 ```bash
-vtt2txt convert source_vtt/ target_txt/
+bili-sub2txt convert source_vtt/ target_txt/
 ```
 
 - `source_vtt/`：含 `.vtt` 文件的输入目录（递归查找）
@@ -41,16 +41,16 @@ vtt2txt convert source_vtt/ target_txt/
 
 ```bash
 # 首次使用需扫码登录
-vtt2txt login
+bili-sub2txt login
 
 # 通过 BV 号下载
-vtt2txt fetch BV1jJ4m1J7ba
+bili-sub2txt fetch BV1jJ4m1J7ba
 
 # 通过完整链接下载
-vtt2txt fetch https://www.bilibili.com/video/BV1jJ4m1J7ba/
+bili-sub2txt fetch https://www.bilibili.com/video/BV1jJ4m1J7ba/
 
 # 指定输出目录和字幕语言
-vtt2txt fetch BV1jJ4m1J7ba --output my_output/ --lang zh-Hans
+bili-sub2txt fetch BV1jJ4m1J7ba --output my_output/ --lang zh-Hans
 ```
 
 **fetch 参数：**
@@ -61,8 +61,8 @@ vtt2txt fetch BV1jJ4m1J7ba --output my_output/ --lang zh-Hans
 ### 其他
 
 ```bash
-vtt2txt --help       # 查看帮助
-vtt2txt --version    # 查看版本
+bili-sub2txt --help       # 查看帮助
+bili-sub2txt --version    # 查看版本
 ```
 
 ### 退出码
@@ -91,10 +91,10 @@ vtt2txt --version    # 查看版本
 ## 项目结构
 
 ```
-vtt2txt/
-├── src/vtt2txt/
+bili-sub2txt/
+├── src/bili_sub2txt/
 │   ├── __init__.py          # 版本信息
-│   ├── __main__.py          # python -m vtt2txt 入口
+│   ├── __main__.py          # python -m bili_sub2txt 入口
 │   ├── cli.py               # argparse 子命令（convert/fetch/login）
 │   ├── converter.py         # VTT 转 TXT + B站 JSON 转 TXT
 │   ├── path_mapper.py       # 路径转换工具
@@ -130,7 +130,7 @@ pytest -v           # 详细输出
 ## 安全说明
 
 - `SESSDATA` 等同 B 站账号登录态，属于高敏凭据
-- 登录态存储在 `~/.config/vtt2txt/session.json`（Windows 为 `%APPDATA%/vtt2txt/session.json`），仅含 SESSDATA，尽力设 `0600` 权限
+- 登录态存储在 `~/.config/bili-sub2txt/session.json`（Windows 为 `%APPDATA%/bili-sub2txt/session.json`），仅含 SESSDATA，尽力设 `0600` 权限
 - SESSDATA 只走 Cookie 请求头，绝不拼入 URL；日志和报错中自动脱敏
 - 配置文件权限在 Windows 上保护有限，建议注意目录 ACL
 

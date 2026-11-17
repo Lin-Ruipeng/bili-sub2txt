@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from vtt2txt.converter import convert_bili_json
-from vtt2txt.errors import BiliError
+from bili_sub2txt.converter import convert_bili_json
+from bili_sub2txt.errors import BiliError
 
 
 def _json(body):
