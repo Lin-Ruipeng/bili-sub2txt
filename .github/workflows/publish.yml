@@ -1,0 +1,51 @@
+name: Publish
+
+# Continuous deployment via PyPI Trusted Publishing (OIDC).
+# Triggered by pushing a `v*` tag. No API token is stored anywhere —
+# the upload uses a short-lived, per-run token minted by PyPI after
+# verifying the GitHub Actions OIDC identity against the trusted
+# publisher registered on pypi.org.
+#
+# PyPI-side registration (one-time, do in browser):
+#   pypi.org → bili-sub2txt project → Manage → Publishing → Add publisher
+#   - Owner:      Lin-Ruipeng
+#   - Repository: bili-sub2txt
+#   - Workflow:   publish.yml
+#   - Environment: pypi   (must match the `environment:` below)
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  publish:
+    name: Build and publish to PyPI
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write   # required for OIDC token issuance
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies (dev + download)
+        run: uv sync --all-extras
+
+      - name: Run tests (gate the release)
+        run: uv run pytest -q
+
+      - name: Build distributions
+        run: uv build
+
+      - name: Publish to PyPI (Trusted Publishing, no token)
+        run: uv publish
