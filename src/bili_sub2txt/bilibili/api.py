@@ -44,7 +44,18 @@ class FetchedSubtitle:
 
 
 def parse_target(target: str) -> str:
-    """Extract a BV number from *target* (bare BV, full URL, or b23.tv short link).
+    """Extract a BV number from *target* by scanning for the ``BV`` pattern.
+
+    Accepts any string that contains a BV number: a bare BV (e.g.
+    ``BV1xxxxxxxxxx``), a full desktop URL
+    (``https://www.bilibili.com/video/BV1xxxxxxxxxx``), or a share text
+    with the URL embedded (``【标题】 https://www.bilibili.com/video/...``).
+    Query parameters and surrounding text are ignored — only the first
+    ``BV`` + 10 alphanumeric characters match is returned.
+
+    Does **not** resolve ``b23.tv`` short links: those URLs do not carry a
+    BV number and require an HTTP redirect to be followed first. See the
+    tracking issue for short-link support.
 
     Raises ``ValueError`` if no BV number can be found.
     """
