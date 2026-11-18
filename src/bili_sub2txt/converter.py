@@ -66,7 +66,7 @@ def convert_vtt(content: str) -> str:
         if lines[0].startswith(NON_CUE_PREFIXES):
             continue
 
-        current_block_lines = []
+        current_block_lines: list[str] = []
         in_cue = False
 
         for line in lines:
@@ -138,8 +138,6 @@ def convert_bili_json(content: str) -> str:
 
     # Field-drift guard: body has dict items but none yielded text.
     if not blocks and dict_items > 0 and missing_text == dict_items:
-        raise BiliError(
-            "字幕 body 字段无法识别（所有元素均无 content/text 键）"
-        )
+        raise BiliError("字幕 body 字段无法识别（所有元素均无 content/text 键）")
 
     return "\n".join(blocks)

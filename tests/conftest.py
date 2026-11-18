@@ -112,6 +112,4 @@ class FakeTransport:
             if all(params.get(k) == v for k, v in route_params.items()):
                 return resp
 
-        raise AssertionError(
-            f"unexpected request: {method} {url} params={params}"
-        )
+        raise AssertionError(f"unexpected request: {method} {url} params={params}")

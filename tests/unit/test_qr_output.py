@@ -17,7 +17,7 @@ class TestWriteQrImage:
         assert "<svg" in text  # header is an <?xml?> declaration
 
     def test_png_output(self, tmp_path):
-        PIL = pytest.importorskip("PIL")  # noqa: N816
+        PIL = pytest.importorskip("PIL")
         p = write_qr_image(URL, tmp_path / "login.png")
         assert p.exists()
         with PIL.Image.open(p) as im:

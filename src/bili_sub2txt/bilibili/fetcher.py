@@ -4,14 +4,14 @@ import json
 import sys
 from pathlib import Path
 
-from bili_sub2txt.bilibili.api import FetchedSubtitle, VideoInfo, fetch_subtitle_json, parse_target
+from bili_sub2txt.bilibili.api import fetch_subtitle_json, parse_target
 from bili_sub2txt.bilibili.net import Transport, default_transport
 from bili_sub2txt.converter import convert_bili_json
 from bili_sub2txt.errors import (
-    BiliError,
     EXIT_GENERIC,
     EXIT_LOGIN,
     EXIT_OK,
+    BiliError,
     LoginExpired,
     NetworkError,
     NoSubtitle,

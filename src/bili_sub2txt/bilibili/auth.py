@@ -45,7 +45,7 @@ def render_qrcode(url: str) -> str:
         matrix = qr.get_matrix()
         # (top, bottom) module pair -> glyph; foreground = dark module.
         glyphs = {
-            (True, True): "\u2588",   # █ full block
+            (True, True): "\u2588",  # █ full block
             (True, False): "\u2580",  # ▀ upper half
             (False, True): "\u2584",  # ▄ lower half
             (False, False): " ",
@@ -55,9 +55,7 @@ def render_qrcode(url: str) -> str:
         for r in range(0, len(matrix), 2):
             top = matrix[r]
             bottom = matrix[r + 1] if r + 1 < len(matrix) else [False] * width
-            lines.append(
-                "".join(glyphs[(bool(t), bool(b))] for t, b in zip(top, bottom))
-            )
+            lines.append("".join(glyphs[(bool(t), bool(b))] for t, b in zip(top, bottom)))
         body = "\n".join(lines)
         return f"\x1b[30;47m{body}\x1b[0m"
     except ImportError:
@@ -109,9 +107,7 @@ def _generate_qrcode(t: Transport) -> tuple[str, str]:
     resp = t.request("GET", GENERATE_URL)
     data = resp.json()
     if data.get("code") != 0:
-        raise LoginExpired(
-            f"二维码生成失败: {data.get('message', '')}"
-        )
+        raise LoginExpired(f"二维码生成失败: {data.get('message', '')}")
     return data["data"]["url"], data["data"]["qrcode_key"]
 
 
@@ -170,9 +166,7 @@ def login(
             sessdata = _extract_sessdata_from_url(data_url)
             source = "data.url"
             if not sessdata:
-                sessdata = _extract_sessdata_from_cookie_header(
-                    resp.header("Set-Cookie")
-                )
+                sessdata = _extract_sessdata_from_cookie_header(resp.header("Set-Cookie"))
                 source = "Set-Cookie"
 
             # Diagnostic summary only — never print raw URLs or cookie

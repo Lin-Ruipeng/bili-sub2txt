@@ -9,7 +9,7 @@ from bili_sub2txt.bilibili import auth, fetcher
 from bili_sub2txt.bilibili.qr_output import QrOutputError, write_qr_image
 from bili_sub2txt.bilibili.session import get_sessdata
 from bili_sub2txt.converter import convert_vtt
-from bili_sub2txt.errors import EXIT_GENERIC, EXIT_LOGIN, EXIT_OK, LoginExpired
+from bili_sub2txt.errors import EXIT_GENERIC, EXIT_OK, LoginExpired
 from bili_sub2txt.path_mapper import map_path
 
 
@@ -19,9 +19,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="bili_sub2txt",
         description="将 VTT 字幕文件转换为纯文本,或从 Bilibili 下载字幕。",
     )
-    parser.add_argument(
-        "-V", "--version", action="version", version=f"%(prog)s {__version__}"
-    )
+    parser.add_argument("-V", "--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     # convert — existing local-file conversion.
@@ -123,19 +121,19 @@ def cmd_convert(input_dir: Path, output_dir: Path) -> int:
 def cmd_fetch(target: str, output_dir: Path, lang: str | None) -> int:
     """Download subtitles for *target* and convert to TXT."""
     sessdata = get_sessdata()
-    return fetcher.fetch(
-        target, output_dir=output_dir, lang=lang, sessdata=sessdata
-    )
+    return fetcher.fetch(target, output_dir=output_dir, lang=lang, sessdata=sessdata)
 
 
 def cmd_login(qr_out: Path | None = None, print_url: bool = False) -> int:
     """Run QR-code login and persist the session."""
     on_qrcode = None
     if qr_out is not None:
+
         def on_qrcode(qr_url: str) -> None:
             write_qr_image(qr_url, qr_out)
             print(f"二维码已写入 {qr_out}", file=sys.stderr)
     elif print_url:
+
         def on_qrcode(qr_url: str) -> None:
             print(f"登录链接: {qr_url}")
 

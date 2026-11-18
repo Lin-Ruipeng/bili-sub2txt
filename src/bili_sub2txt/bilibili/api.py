@@ -3,7 +3,6 @@
 import re
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urlparse
 
 from bili_sub2txt.bilibili.net import Transport, default_transport
 from bili_sub2txt.bilibili.wbi import fetch_wbi_keys, sign
@@ -67,9 +66,7 @@ def get_video_info(
     data = resp.json()
     code = data.get("code", -1)
     if code != 0:
-        raise VideoNotFound(
-            f"视频信息获取失败: code={code} {data.get('message', '')}"
-        )
+        raise VideoNotFound(f"视频信息获取失败: code={code} {data.get('message', '')}")
     d = data["data"]
     return VideoInfo(
         title=d.get("title", ""),
@@ -116,13 +113,9 @@ def list_subtitle_tracks(
     if code == -101:
         raise LoginExpired("登录态失效,请运行 bili_sub2txt login 重新登录")
     if code != 0:
-        raise BiliError(
-            f"player 接口失败: code={code} {data.get('message', '')}"
-        )
+        raise BiliError(f"player 接口失败: code={code} {data.get('message', '')}")
 
-    subtitles = (
-        (data.get("data") or {}).get("subtitle") or {}
-    ).get("subtitles") or []
+    subtitles = ((data.get("data") or {}).get("subtitle") or {}).get("subtitles") or []
     if not subtitles:
         raise NoSubtitle("该分 P 没有可用字幕")
 
@@ -218,7 +211,6 @@ def fetch_subtitle_json(
     ``NoSubtitle`` is raised.
     """
     info = get_video_info(transport, sessdata, bvid)
-    total_pages = len(info.pages) or 1
 
     results: list[FetchedSubtitle] = []
     for page in info.pages:

@@ -40,9 +40,7 @@ def write_qr_image(url: str, path: str | Path) -> Path:
                 "SVG 输出需要 qrcode 库: pip install 'bili-sub2txt[download]'"
             ) from exc
         try:
-            qrcode.make(url, image_factory=qrcode.image.svg.SvgPathImage).save(
-                str(p)
-            )
+            qrcode.make(url, image_factory=qrcode.image.svg.SvgPathImage).save(str(p))
         except OSError as exc:
             raise QrOutputError(f"无法写入二维码文件 {p}: {exc}") from exc
         return p
@@ -58,8 +56,7 @@ def write_qr_image(url: str, path: str | Path) -> Path:
             import PIL  # noqa: F401 — presence check only
         except ImportError as exc:
             raise QrOutputError(
-                "PNG 输出需要 Pillow: pip install 'qrcode[pil]' "
-                "(或改用 --qr-out xxx.svg)"
+                "PNG 输出需要 Pillow: pip install 'qrcode[pil]' (或改用 --qr-out xxx.svg)"
             ) from exc
         try:
             qrcode.make(url).save(str(p))
@@ -67,6 +64,4 @@ def write_qr_image(url: str, path: str | Path) -> Path:
             raise QrOutputError(f"无法写入二维码文件 {p}: {exc}") from exc
         return p
 
-    raise QrOutputError(
-        f"不支持的二维码输出格式 {suffix or '(无扩展名)'}: 仅支持 .png / .svg"
-    )
+    raise QrOutputError(f"不支持的二维码输出格式 {suffix or '(无扩展名)'}: 仅支持 .png / .svg")

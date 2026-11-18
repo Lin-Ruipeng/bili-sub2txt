@@ -19,7 +19,9 @@ POLL_URL = "https://passport.bilibili.com/x/passport-login/web/qrcode/poll"
 
 class TestExtractSessdata:
     def test_from_url(self):
-        url = "https://api.bilibili.com/x/passport-login/web/crossDomain?SESSDATA=abc123&DedeUserID=1"
+        url = (
+            "https://api.bilibili.com/x/passport-login/web/crossDomain?SESSDATA=abc123&DedeUserID=1"
+        )
         assert _extract_sessdata_from_url(url) == "abc123"
 
     def test_from_url_missing(self):
@@ -51,7 +53,7 @@ class TestRenderQrcode:
         """Only half/full blocks and spaces; quiet zone yields blank edges."""
         qrcode = pytest.importorskip("qrcode")
         result = render_qrcode("https://example.com")
-        body = result[len("\x1b[30;47m"):-len("\x1b[0m")]
+        body = result[len("\x1b[30;47m") : -len("\x1b[0m")]
         lines = body.split("\n")
         allowed = set("\u2588\u2580\u2584 ")
         for line in lines:
@@ -76,35 +78,55 @@ class TestLogin:
     def test_success_from_url(self, tmp_path, monkeypatch):
         monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
         t = FakeTransport()
-        t.route(GENERATE_URL, body={
-            "code": 0,
-            "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
-        })
-        t.route_sequence(POLL_URL, [
-            {"body": {"code": 0, "data": {"code": 86101}}},
-            {"body": {"code": 0, "data": {
+        t.route(
+            GENERATE_URL,
+            body={
                 "code": 0,
-                "url": "https://api.bilibili.com/x/passport-login/web/crossDomain?SESSDATA=this_is_a_long_enough_sessdata_value",
-            }}},
-        ])
+                "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
+            },
+        )
+        t.route_sequence(
+            POLL_URL,
+            [
+                {"body": {"code": 0, "data": {"code": 86101}}},
+                {
+                    "body": {
+                        "code": 0,
+                        "data": {
+                            "code": 0,
+                            "url": "https://api.bilibili.com/x/passport-login/web/crossDomain?SESSDATA=this_is_a_long_enough_sessdata_value",
+                        },
+                    }
+                },
+            ],
+        )
 
-        no_sleep = lambda _: None
+        def no_sleep(_):
+            return None
+
         sessdata = login(t, poll_interval=0.01, max_wait=5, _sleep=no_sleep)
         assert sessdata == "this_is_a_long_enough_sessdata_value"
 
     def test_qr_expired(self, monkeypatch):
         t = FakeTransport()
-        t.route(GENERATE_URL, body={
-            "code": 0,
-            "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
-        })
-        t.route(POLL_URL, params={"qrcode_key": "key123"}, body={
-            "code": 0, "data": {"code": 86038},
-        })
+        t.route(
+            GENERATE_URL,
+            body={
+                "code": 0,
+                "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
+            },
+        )
+        t.route(
+            POLL_URL,
+            params={"qrcode_key": "key123"},
+            body={
+                "code": 0,
+                "data": {"code": 86038},
+            },
+        )
 
         with pytest.raises(LoginExpired, match="二维码已失效"):
-            login(t, poll_interval=0.01, max_wait=5, max_refreshes=0,
-                  _sleep=lambda _: None)
+            login(t, poll_interval=0.01, max_wait=5, max_refreshes=0, _sleep=lambda _: None)
 
     def test_generate_failure(self):
         t = FakeTransport()
@@ -115,25 +137,36 @@ class TestLogin:
     def test_success_from_set_cookie(self, tmp_path, monkeypatch):
         monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
         t = FakeTransport()
-        t.route(GENERATE_URL, body={
-            "code": 0,
-            "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
-        })
-        t.route_sequence(POLL_URL, [
-            {"body": {"code": 0, "data": {"code": 0, "url": ""}}},
-        ])
+        t.route(
+            GENERATE_URL,
+            body={
+                "code": 0,
+                "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
+            },
+        )
+        t.route_sequence(
+            POLL_URL,
+            [
+                {"body": {"code": 0, "data": {"code": 0, "url": ""}}},
+            ],
+        )
         # Override the first (and only) sequence response with Set-Cookie.
-        t._sequences[POLL_URL][0]._headers["set-cookie"] = "SESSDATA=this_is_a_long_cookie_sessdata; Path=/"
+        t._sequences[POLL_URL][0]._headers["set-cookie"] = (
+            "SESSDATA=this_is_a_long_cookie_sessdata; Path=/"
+        )
 
         sessdata = login(t, poll_interval=0.01, max_wait=5, _sleep=lambda _: None)
         assert sessdata == "this_is_a_long_cookie_sessdata"
 
-    @pytest.mark.parametrize("source_url,cookie_header", [
-        # Credential comes from data.url query string.
-        ("https://api.bilibili.com/crossDomain?SESSDATA=secret_from_url_0123456789", None),
-        # Credential comes from the Set-Cookie header.
-        ("", "SESSDATA=secret_from_cookie_0123456789; Path=/; HttpOnly"),
-    ])
+    @pytest.mark.parametrize(
+        "source_url,cookie_header",
+        [
+            # Credential comes from data.url query string.
+            ("https://api.bilibili.com/crossDomain?SESSDATA=secret_from_url_0123456789", None),
+            # Credential comes from the Set-Cookie header.
+            ("", "SESSDATA=secret_from_cookie_0123456789; Path=/; HttpOnly"),
+        ],
+    )
     def test_success_output_does_not_leak_sessdata(
         self, tmp_path, monkeypatch, capsys, source_url, cookie_header
     ):
@@ -141,13 +174,19 @@ class TestLogin:
         the plaintext SESSDATA, regardless of the extraction source."""
         monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
         t = FakeTransport()
-        t.route(GENERATE_URL, body={
-            "code": 0,
-            "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
-        })
-        t.route_sequence(POLL_URL, [
-            {"body": {"code": 0, "data": {"code": 0, "url": source_url}}},
-        ])
+        t.route(
+            GENERATE_URL,
+            body={
+                "code": 0,
+                "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
+            },
+        )
+        t.route_sequence(
+            POLL_URL,
+            [
+                {"body": {"code": 0, "data": {"code": 0, "url": source_url}}},
+            ],
+        )
         if cookie_header:
             t._sequences[POLL_URL][0]._headers["set-cookie"] = cookie_header
 
@@ -164,20 +203,36 @@ class TestLogin:
         monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
         statuses = []
         t = FakeTransport()
-        t.route(GENERATE_URL, body={
-            "code": 0,
-            "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
-        })
-        t.route_sequence(POLL_URL, [
-            {"body": {"code": 0, "data": {"code": 86101}}},
-            {"body": {"code": 0, "data": {
+        t.route(
+            GENERATE_URL,
+            body={
                 "code": 0,
-                "url": "https://api.bilibili.com/?SESSDATA=this_is_a_long_ok_sessdata",
-            }}},
-        ])
+                "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
+            },
+        )
+        t.route_sequence(
+            POLL_URL,
+            [
+                {"body": {"code": 0, "data": {"code": 86101}}},
+                {
+                    "body": {
+                        "code": 0,
+                        "data": {
+                            "code": 0,
+                            "url": "https://api.bilibili.com/?SESSDATA=this_is_a_long_ok_sessdata",
+                        },
+                    }
+                },
+            ],
+        )
 
-        login(t, on_status=lambda code, data: statuses.append(code),
-              poll_interval=0.01, max_wait=5, _sleep=lambda _: None)
+        login(
+            t,
+            on_status=lambda code, data: statuses.append(code),
+            poll_interval=0.01,
+            max_wait=5,
+            _sleep=lambda _: None,
+        )
         assert 86101 in statuses
         assert 0 in statuses
 
@@ -187,21 +242,30 @@ class TestQrcodeCallback:
 
     def _success_transport(self):
         t = FakeTransport()
-        t.route(GENERATE_URL, body={
-            "code": 0,
-            "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
-        })
-        t.route_sequence(POLL_URL, [
-            {"body": {"code": 0, "data": {
+        t.route(
+            GENERATE_URL,
+            body={
                 "code": 0,
-                "url": "https://api.bilibili.com/?SESSDATA=this_is_a_long_ok_sessdata",
-            }}},
-        ])
+                "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
+            },
+        )
+        t.route_sequence(
+            POLL_URL,
+            [
+                {
+                    "body": {
+                        "code": 0,
+                        "data": {
+                            "code": 0,
+                            "url": "https://api.bilibili.com/?SESSDATA=this_is_a_long_ok_sessdata",
+                        },
+                    }
+                },
+            ],
+        )
         return t
 
-    def test_on_qrcode_receives_url_and_skips_render(
-        self, tmp_path, monkeypatch
-    ):
+    def test_on_qrcode_receives_url_and_skips_render(self, tmp_path, monkeypatch):
         monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
         monkeypatch.setattr(
             "bili_sub2txt.bilibili.auth.render_qrcode",
@@ -213,7 +277,9 @@ class TestQrcodeCallback:
         login(
             self._success_transport(),
             on_qrcode=seen.append,
-            poll_interval=0.01, max_wait=5, _sleep=lambda _: None,
+            poll_interval=0.01,
+            max_wait=5,
+            _sleep=lambda _: None,
         )
         assert seen == ["https://q.example.com"]
 
@@ -228,7 +294,9 @@ class TestQrcodeCallback:
         )
         login(
             self._success_transport(),
-            poll_interval=0.01, max_wait=5, _sleep=lambda _: None,
+            poll_interval=0.01,
+            max_wait=5,
+            _sleep=lambda _: None,
         )
         assert "https://q.example.com" in capsys.readouterr().err
 
@@ -241,7 +309,9 @@ class TestQrcodeCallback:
         )
         login(
             self._success_transport(),
-            poll_interval=0.01, max_wait=5, _sleep=lambda _: None,
+            poll_interval=0.01,
+            max_wait=5,
+            _sleep=lambda _: None,
         )
         assert "FAKE_QR_BLOCK" in capsys.readouterr().out
 
@@ -253,22 +323,46 @@ class TestQrRefresh:
         monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
         t = FakeTransport()
         # Two distinct generate responses: initial + one refresh.
-        t.route_sequence(GENERATE_URL, [
-            {"body": {"code": 0, "data": {"url": "https://first.example.com", "qrcode_key": "key1"}}},
-            {"body": {"code": 0, "data": {"url": "https://second.example.com", "qrcode_key": "key2"}}},
-        ])
-        t.route_sequence(POLL_URL, [
-            {"body": {"code": 0, "data": {"code": 86038}}},
-            {"body": {"code": 0, "data": {
-                "code": 0,
-                "url": "https://api.bilibili.com/?SESSDATA=refreshed_long_sessdata_value",
-            }}},
-        ])
+        t.route_sequence(
+            GENERATE_URL,
+            [
+                {
+                    "body": {
+                        "code": 0,
+                        "data": {"url": "https://first.example.com", "qrcode_key": "key1"},
+                    }
+                },
+                {
+                    "body": {
+                        "code": 0,
+                        "data": {"url": "https://second.example.com", "qrcode_key": "key2"},
+                    }
+                },
+            ],
+        )
+        t.route_sequence(
+            POLL_URL,
+            [
+                {"body": {"code": 0, "data": {"code": 86038}}},
+                {
+                    "body": {
+                        "code": 0,
+                        "data": {
+                            "code": 0,
+                            "url": "https://api.bilibili.com/?SESSDATA=refreshed_long_sessdata_value",
+                        },
+                    }
+                },
+            ],
+        )
 
         seen = []
         sessdata = login(
-            t, on_qrcode=seen.append,
-            poll_interval=0.01, max_wait=5, _sleep=lambda _: None,
+            t,
+            on_qrcode=seen.append,
+            poll_interval=0.01,
+            max_wait=5,
+            _sleep=lambda _: None,
         )
         assert sessdata == "refreshed_long_sessdata_value"
         # The callback (or --qr-out writer) must be re-triggered with the
@@ -283,15 +377,21 @@ class TestQrRefresh:
         monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
         t = FakeTransport()
         # 3 generates: initial + 2 refreshes (default max_refreshes=2).
-        t.route(GENERATE_URL, body={
-            "code": 0,
-            "data": {"url": "https://q.example.com", "qrcode_key": "key1"},
-        })
-        t.route_sequence(POLL_URL, [
-            {"body": {"code": 0, "data": {"code": 86038}}},
-            {"body": {"code": 0, "data": {"code": 86038}}},
-            {"body": {"code": 0, "data": {"code": 86038}}},
-        ])
+        t.route(
+            GENERATE_URL,
+            body={
+                "code": 0,
+                "data": {"url": "https://q.example.com", "qrcode_key": "key1"},
+            },
+        )
+        t.route_sequence(
+            POLL_URL,
+            [
+                {"body": {"code": 0, "data": {"code": 86038}}},
+                {"body": {"code": 0, "data": {"code": 86038}}},
+                {"body": {"code": 0, "data": {"code": 86038}}},
+            ],
+        )
 
         with pytest.raises(LoginExpired, match="二维码已失效"):
             login(t, poll_interval=0.01, max_wait=5, _sleep=lambda _: None)

@@ -1,4 +1,3 @@
-import pytest
 from bili_sub2txt.converter import convert_vtt
 
 
@@ -86,11 +85,7 @@ class TestRealWorldVttFormats:
 
     def test_timestamp_with_cue_settings(self):
         """Cue settings after the timestamp must not break parsing."""
-        vtt = (
-            "WEBVTT\n\n"
-            "00:00:00.100 --> 00:00:01.140 align:start position:0%\n"
-            "这是一条字幕"
-        )
+        vtt = "WEBVTT\n\n00:00:00.100 --> 00:00:01.140 align:start position:0%\n这是一条字幕"
         assert convert_vtt(vtt) == "这是一条字幕"
 
     def test_timestamp_without_hours_segment(self):
@@ -134,34 +129,23 @@ class TestRealWorldVttFormats:
 
     def test_header_metadata_is_dropped(self):
         """Kind/Language header lines must not leak into the output."""
-        vtt = (
-            "WEBVTT\nKind: captions\nLanguage: zh\n\n"
-            "00:00:00.100 --> 00:00:01.140\n字幕内容"
-        )
+        vtt = "WEBVTT\nKind: captions\nLanguage: zh\n\n00:00:00.100 --> 00:00:01.140\n字幕内容"
         assert convert_vtt(vtt) == "字幕内容"
 
     def test_inline_markup_is_stripped(self):
         """Inline cue tags are not part of the plain text."""
-        vtt = (
-            "WEBVTT\n\n"
-            "00:00:00.100 --> 00:00:01.140\n<v Speaker>你好 <i>再见</i>"
-        )
+        vtt = "WEBVTT\n\n00:00:00.100 --> 00:00:01.140\n<v Speaker>你好 <i>再见</i>"
         assert convert_vtt(vtt) == "你好 再见"
 
     def test_html_entities_are_decoded(self):
         """HTML entities must be decoded to their characters."""
-        vtt = (
-            "WEBVTT\n\n"
-            "00:00:00.100 --> 00:00:01.140\nA &amp; B &lt;C&gt; &nbsp;end"
-        )
+        vtt = "WEBVTT\n\n00:00:00.100 --> 00:00:01.140\nA &amp; B &lt;C&gt; &nbsp;end"
         assert convert_vtt(vtt) == "A & B <C> \u00a0end"
 
     def test_cues_without_blank_line_separator(self):
         """Files that omit the blank separator between cues still work."""
         vtt = (
-            "WEBVTT\n\n"
-            "00:00:00.100 --> 00:00:01.140\n第一条\n"
-            "00:00:01.140 --> 00:00:01.980\n第二条"
+            "WEBVTT\n\n00:00:00.100 --> 00:00:01.140\n第一条\n00:00:01.140 --> 00:00:01.980\n第二条"
         )
         assert convert_vtt(vtt) == "第一条\n第二条"
 

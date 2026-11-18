@@ -156,9 +156,7 @@ class TestSubcommandSkeleton:
 
         def fake_fetch(target, *, output_dir, lang, sessdata, **kw):
             (output_dir / "BV1jJ4m1J7ba").mkdir(parents=True, exist_ok=True)
-            (output_dir / "BV1jJ4m1J7ba" / "test.txt").write_text(
-                "字幕内容", encoding="utf-8"
-            )
+            (output_dir / "BV1jJ4m1J7ba" / "test.txt").write_text("字幕内容", encoding="utf-8")
             return EXIT_OK
 
         monkeypatch.setattr("bili_sub2txt.cli.fetcher.fetch", fake_fetch)
@@ -192,6 +190,7 @@ class TestLoginQrOptions:
         def fake_login(*args, **kwargs):
             kwargs["on_qrcode"]("https://passport.example/qr?qrcode_key=abc")
             return "fake_sess"
+
         return fake_login
 
     def test_login_default_passes_no_callback(self, monkeypatch):
@@ -220,9 +219,7 @@ class TestLoginQrOptions:
         assert code == 0
         assert "https://passport.example/qr?qrcode_key=abc" in capsys.readouterr().out
 
-    def test_login_qr_out_bad_extension_fails_gracefully(
-        self, tmp_path, monkeypatch, capsys
-    ):
+    def test_login_qr_out_bad_extension_fails_gracefully(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setattr("bili_sub2txt.cli.auth.login", self._fake_login_factory())
         code = run_main("login", "--qr-out", str(tmp_path / "login.bmp"))
         assert code == 1

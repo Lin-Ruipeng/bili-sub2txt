@@ -2,7 +2,7 @@
 
 import pytest
 
-from bili_sub2txt.bilibili.net import HttpResponse, default_transport, set_default_transport
+from bili_sub2txt.bilibili.net import HttpResponse
 from tests.conftest import FakeTransport
 
 
@@ -12,7 +12,7 @@ class TestHttpResponse:
         assert r.json() == {"code": 0}
 
     def test_text(self):
-        r = HttpResponse(200, "hello".encode("utf-8"))
+        r = HttpResponse(200, b"hello")
         assert r.text == "hello"
 
     def test_header_case_insensitive(self):
@@ -62,7 +62,8 @@ class TestFakeTransport:
     def test_calls_recorded(self):
         t = FakeTransport()
         t.route("https://api.example.com/data", body={})
-        t.request("GET", "https://api.example.com/data",
-                  params={"aid": 1}, cookies={"SESSDATA": "secret"})
+        t.request(
+            "GET", "https://api.example.com/data", params={"aid": 1}, cookies={"SESSDATA": "secret"}
+        )
         assert len(t.calls) == 1
         assert t.calls[0].cookies == {"SESSDATA": "secret"}

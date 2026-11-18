@@ -1,7 +1,5 @@
 """Tests for filename sanitisation and output-path construction."""
 
-from pathlib import Path
-
 from bili_sub2txt.naming import build_output_path, sanitize_filename
 
 

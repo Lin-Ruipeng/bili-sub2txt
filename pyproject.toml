@@ -24,7 +24,11 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0.0"]
+dev = [
+    "pytest>=7.0.0",
+    "ruff>=0.6",
+    "mypy>=1.10",
+]
 download = ["qrcode[pil]>=7.4"]
 
 [project.scripts]
@@ -48,3 +52,37 @@ include = ["src", "tests", "README.md", "README.en.md", "CHANGELOG.md", "LICENSE
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+# Baseline rule set adopted for CI. The bugbear (B), bandit (S) and pylint
+# (PL) families are intentionally omitted for now: the codebase uses
+# deliberate broad-except patterns for CLI / DPAPI / batch resilience that
+# those families flag. They can be adopted later via targeted noqa.
+select = ["E", "F", "W", "I", "UP", "RUF"]
+ignore = [
+    "E501",        # line length is enforced by `ruff format`, not the checker
+    "RUF001",      # ambiguous unicode in strings — CJK punctuation is intentional
+    "RUF002",      # ambiguous unicode in docstrings — same
+    "RUF003",      # ambiguous unicode in comments — same
+]
+
+[tool.mypy]
+python_version = "3.10"
+mypy_path = ["src"]
+explicit_package_bases = true
+files = ["src/bili_sub2txt"]
+# Pragmatic baseline: strict typing where it matters, lenient on the
+# third-party stubs that aren't shipped (qrcode has no type stubs).
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+check_untyped_defs = true
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = ["qrcode.*", "qrcode.image.*", "PIL.*"]
+ignore_missing_imports = true

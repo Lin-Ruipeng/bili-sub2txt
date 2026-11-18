@@ -24,5 +24,5 @@ def map_path(input_path: Path, input_dir: Path, output_dir: Path) -> Path:
     # Get relative path from input directory
     relative_path = input_path.relative_to(input_dir)
     # Replace .vtt extension with .txt
-    output_path = (output_dir / relative_path).with_suffix('.txt')
+    output_path = (output_dir / relative_path).with_suffix(".txt")
     return output_path

@@ -1,9 +1,6 @@
 """Tests for the fetch orchestrator."""
 
 import json
-from pathlib import Path
-
-import pytest
 
 from bili_sub2txt.bilibili.fetcher import _cross_check_duration, fetch
 from bili_sub2txt.errors import EXIT_GENERIC, EXIT_LOGIN, EXIT_OK
@@ -21,17 +18,31 @@ def _setup_video(t, *, pages=None, subtitles_per_page=None, subtitle_body=None):
     subtitles_per_page = subtitles_per_page or {100: ["zh-Hans"]}
     subtitle_body = subtitle_body or {"body": [{"from": 0, "to": 5, "content": "测试字幕"}]}
 
-    t.route(VIEW_URL, params={"bvid": TEST_BV}, body={
-        "code": 0, "data": {
-            "title": "测试视频", "aid": 1, "duration": 60, "pages": pages,
-        }
-    })
-    t.route(NAV_URL, body={
-        "code": 0, "data": {"wbi_img": {
-            "img_url": "https://x.com/" + "a" * 32 + ".png",
-            "sub_url": "https://x.com/" + "b" * 32 + ".png",
-        }}
-    })
+    t.route(
+        VIEW_URL,
+        params={"bvid": TEST_BV},
+        body={
+            "code": 0,
+            "data": {
+                "title": "测试视频",
+                "aid": 1,
+                "duration": 60,
+                "pages": pages,
+            },
+        },
+    )
+    t.route(
+        NAV_URL,
+        body={
+            "code": 0,
+            "data": {
+                "wbi_img": {
+                    "img_url": "https://x.com/" + "a" * 32 + ".png",
+                    "sub_url": "https://x.com/" + "b" * 32 + ".png",
+                }
+            },
+        },
+    )
     for page in pages:
         cid = page["cid"]
         subs = subtitles_per_page.get(cid, [])
@@ -41,13 +52,23 @@ def _setup_video(t, *, pages=None, subtitles_per_page=None, subtitle_body=None):
                 url = f"https://sub.example.com/{cid}_{lan}.json"
                 sub_list.append({"lan": lan, "lan_doc": lan, "subtitle_url": url})
                 t.route(url, body=subtitle_body)
-            t.route(PLAYER_URL, params={"aid": "1", "cid": str(cid)}, body={
-                "code": 0, "data": {"subtitle": {"subtitles": sub_list}},
-            })
+            t.route(
+                PLAYER_URL,
+                params={"aid": "1", "cid": str(cid)},
+                body={
+                    "code": 0,
+                    "data": {"subtitle": {"subtitles": sub_list}},
+                },
+            )
         else:
-            t.route(PLAYER_URL, params={"aid": "1", "cid": str(cid)}, body={
-                "code": 0, "data": {"subtitle": {"subtitles": []}},
-            })
+            t.route(
+                PLAYER_URL,
+                params={"aid": "1", "cid": str(cid)},
+                body={
+                    "code": 0,
+                    "data": {"subtitle": {"subtitles": []}},
+                },
+            )
 
 
 class TestCrossCheckDuration:
@@ -82,13 +103,17 @@ class TestFetch:
 
     def test_multi_page_success(self, tmp_path):
         t = FakeTransport()
-        _setup_video(t, pages=[
-            {"cid": 100, "page": 1, "part": "第一集"},
-            {"cid": 200, "page": 2, "part": "第二集"},
-        ], subtitles_per_page={
-            100: ["zh-Hans"],
-            200: ["zh-Hans"],
-        })
+        _setup_video(
+            t,
+            pages=[
+                {"cid": 100, "page": 1, "part": "第一集"},
+                {"cid": 200, "page": 2, "part": "第二集"},
+            ],
+            subtitles_per_page={
+                100: ["zh-Hans"],
+                200: ["zh-Hans"],
+            },
+        )
         code = fetch(TEST_BV, output_dir=tmp_path, transport=t, sessdata="sess")
         assert code == EXIT_OK
         assert (tmp_path / TEST_BV / "01_第一集.txt").exists()

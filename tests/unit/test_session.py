@@ -61,13 +61,9 @@ class TestDpapiProtection:
         # Transparent decrypt on read.
         assert get_sessdata() == "my_secret_sessdata"
 
-    def test_dpapi_unavailable_falls_back_to_plaintext(
-        self, tmp_path, monkeypatch, capsys
-    ):
+    def test_dpapi_unavailable_falls_back_to_plaintext(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
-        monkeypatch.setattr(
-            "bili_sub2txt.bilibili.session._dpapi_protect", lambda data: None
-        )
+        monkeypatch.setattr("bili_sub2txt.bilibili.session._dpapi_protect", lambda data: None)
         monkeypatch.setattr(sys, "platform", "win32")
 
         save_session("plaintext_fallback_sessdata")
@@ -76,13 +72,9 @@ class TestDpapiProtection:
         assert stored == {"SESSDATA": "plaintext_fallback_sessdata"}
         assert "明文保存" in capsys.readouterr().err
 
-    def test_decrypt_failure_returns_empty_with_warning(
-        self, tmp_path, monkeypatch, capsys
-    ):
+    def test_decrypt_failure_returns_empty_with_warning(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
-        monkeypatch.setattr(
-            "bili_sub2txt.bilibili.session._dpapi_unprotect", lambda blob: None
-        )
+        monkeypatch.setattr("bili_sub2txt.bilibili.session._dpapi_unprotect", lambda blob: None)
         (tmp_path / "session.json").write_text(
             json.dumps({"scheme": "dpapi", "data": "not-a-valid-blob"}),
             encoding="utf-8",
@@ -92,9 +84,7 @@ class TestDpapiProtection:
         assert "解密失败" in capsys.readouterr().err
         assert get_sessdata() is None
 
-    def test_legacy_plaintext_file_is_read_transparently(
-        self, tmp_path, monkeypatch
-    ):
+    def test_legacy_plaintext_file_is_read_transparently(self, tmp_path, monkeypatch):
         monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
         (tmp_path / "session.json").write_text(
             json.dumps({"SESSDATA": "legacy_plaintext_sessdata"}),

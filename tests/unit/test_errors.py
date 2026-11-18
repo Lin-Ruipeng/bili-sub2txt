@@ -1,7 +1,5 @@
 """Tests for exceptions, exit codes, and redaction."""
 
-import pytest
-
 from bili_sub2txt.errors import (
     EXIT_GENERIC,
     EXIT_LOGIN,

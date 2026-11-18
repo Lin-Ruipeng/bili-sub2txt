@@ -1,9 +1,5 @@
 """Unit tests for path_mapper module (TDD RED phase - tests should FAIL initially)."""
 
-from pathlib import Path
-
-import pytest
-
 from bili_sub2txt.path_mapper import map_path
 
 

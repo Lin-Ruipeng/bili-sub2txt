@@ -10,9 +10,7 @@ from typing import Any, Protocol
 class HttpResponse:
     """A minimal HTTP response wrapper."""
 
-    def __init__(
-        self, status: int, body: bytes, headers: dict[str, str] | None = None
-    ):
+    def __init__(self, status: int, body: bytes, headers: dict[str, str] | None = None):
         self.status = status
         self.body = body
         self._headers = {k.lower(): v for k, v in (headers or {}).items()}
@@ -71,7 +69,11 @@ def _merge_headers(raw: Any) -> dict[str, str]:
 class UrllibTransport:
     """Production transport backed by ``urllib.request``."""
 
-    def __init__(self, timeout: float = 10.0, user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"):
+    def __init__(
+        self,
+        timeout: float = 10.0,
+        user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    ):
         self.timeout = timeout
         self.user_agent = user_agent
 
@@ -100,9 +102,7 @@ class UrllibTransport:
 
         req = urllib.request.Request(url, method=method, headers=req_headers)
         try:
-            with urllib.request.urlopen(
-                req, timeout=timeout or self.timeout
-            ) as resp:
+            with urllib.request.urlopen(req, timeout=timeout or self.timeout) as resp:
                 body = resp.read()
                 resp_headers = _merge_headers(resp.getheaders())
                 return HttpResponse(resp.status, body, resp_headers)

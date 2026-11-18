@@ -97,8 +97,7 @@ class TestNestedDirectoryStructure:
         nested_dir.mkdir(parents=True)
         input_file = nested_dir / "video.vtt"
         input_file.write_text(
-            "WEBVTT\n\n00:00:00.100 --> 00:00:01.140\n嵌套目录测试",
-            encoding="utf-8"
+            "WEBVTT\n\n00:00:00.100 --> 00:00:01.140\n嵌套目录测试", encoding="utf-8"
         )
 
         # Convert
@@ -127,10 +126,7 @@ class TestNestedDirectoryStructure:
         deep_dir = input_dir / "a" / "b" / "c" / "d"
         deep_dir.mkdir(parents=True)
         input_file = deep_dir / "deep.vtt"
-        input_file.write_text(
-            "WEBVTT\n\n00:00:00.100 --> 00:00:01.140\n深层嵌套",
-            encoding="utf-8"
-        )
+        input_file.write_text("WEBVTT\n\n00:00:00.100 --> 00:00:01.140\n深层嵌套", encoding="utf-8")
 
         # Convert
         content = input_file.read_text(encoding="utf-8")
@@ -159,20 +155,17 @@ class TestMultipleFiles:
         # Create multiple VTT files
         file1 = input_dir / "video1.vtt"
         file1.write_text(
-            "WEBVTT\n\n00:00:00.100 --> 00:00:01.140\n第一个文件字幕",
-            encoding="utf-8"
+            "WEBVTT\n\n00:00:00.100 --> 00:00:01.140\n第一个文件字幕", encoding="utf-8"
         )
 
         file2 = input_dir / "video2.vtt"
         file2.write_text(
-            "WEBVTT\n\n00:00:00.100 --> 00:00:01.140\n第二个文件字幕",
-            encoding="utf-8"
+            "WEBVTT\n\n00:00:00.100 --> 00:00:01.140\n第二个文件字幕", encoding="utf-8"
         )
 
         file3 = input_dir / "video3.vtt"
         file3.write_text(
-            "WEBVTT\n\n00:00:00.100 --> 00:00:01.140\n第三个文件字幕",
-            encoding="utf-8"
+            "WEBVTT\n\n00:00:00.100 --> 00:00:01.140\n第三个文件字幕", encoding="utf-8"
         )
 
         # Convert each file
@@ -202,18 +195,14 @@ class TestMultipleFiles:
 
         # Flat file
         flat_file = input_dir / "flat.vtt"
-        flat_file.write_text(
-            "WEBVTT\n\n00:00:00.100 --> 00:00:01.140\n扁平文件",
-            encoding="utf-8"
-        )
+        flat_file.write_text("WEBVTT\n\n00:00:00.100 --> 00:00:01.140\n扁平文件", encoding="utf-8")
 
         # Nested file
         nested_dir = input_dir / "sub"
         nested_dir.mkdir()
         nested_file = nested_dir / "nested.vtt"
         nested_file.write_text(
-            "WEBVTT\n\n00:00:00.100 --> 00:00:01.140\n嵌套文件",
-            encoding="utf-8"
+            "WEBVTT\n\n00:00:00.100 --> 00:00:01.140\n嵌套文件", encoding="utf-8"
         )
 
         # Convert both

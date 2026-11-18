@@ -45,6 +45,7 @@ def session_path() -> Path:
 # DPAPI helpers (Windows only; ctypes, no third-party dependencies).
 #
 
+
 def _dpapi_protect(data: bytes) -> str | None:
     """Encrypt *data* with DPAPI; return base64 text, or ``None`` on failure."""
     if sys.platform != "win32":
@@ -67,11 +68,11 @@ def _dpapi_protect(data: bytes) -> str | None:
         blob_out = DATA_BLOB()
         ok = crypt32.CryptProtectData(
             ctypes.byref(blob_in),
-            None,           # szDataDescr
-            None,           # pOptionalEntropy
-            None,           # pvReserved
-            None,           # pPromptStruct
-            0,              # dwFlags
+            None,  # szDataDescr
+            None,  # pOptionalEntropy
+            None,  # pvReserved
+            None,  # pPromptStruct
+            0,  # dwFlags
             ctypes.byref(blob_out),
         )
         if not ok:
@@ -109,11 +110,11 @@ def _dpapi_unprotect(blob_b64: str) -> bytes | None:
         blob_out = DATA_BLOB()
         ok = crypt32.CryptUnprotectData(
             ctypes.byref(blob_in),
-            None,           # pDataDescr
-            None,           # pOptionalEntropy
-            None,           # pvReserved
-            None,           # pPromptStruct
-            0,              # dwFlags
+            None,  # pDataDescr
+            None,  # pOptionalEntropy
+            None,  # pvReserved
+            None,  # pPromptStruct
+            0,  # dwFlags
             ctypes.byref(blob_out),
         )
         if not ok:
@@ -129,6 +130,7 @@ def _dpapi_unprotect(blob_b64: str) -> bytes | None:
 # ---------------------------------------------------------------------------
 # Session file I/O.
 #
+
 
 def load_session() -> dict[str, str]:
     """Load the session file, returning ``{}`` if absent or corrupted.
