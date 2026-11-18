@@ -1,6 +1,6 @@
 [project]
 name = "bili-sub2txt"
-version = "0.2.0"
+version = "0.3.0"
 description = "Convert Bilibili subtitles to plain text — local VTT conversion and BV-number download"
 readme = "README.md"
 license = "MIT"
@@ -43,7 +43,7 @@ build-backend = "hatchling.build"
 packages = ["src/bili_sub2txt"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src", "tests", "README.md", "README.en.md", "LICENSE", "pyproject.toml"]
+include = ["src", "tests", "README.md", "README.en.md", "CHANGELOG.md", "LICENSE", "pyproject.toml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
