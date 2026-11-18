@@ -7,7 +7,8 @@ Flow:
   3. Poll ``/qrcode/poll`` every *poll_interval* seconds:
      - 86101 = waiting for scan
      - 86090 = scanned, awaiting confirmation
-     - 86038 = QR code expired → ``LoginExpired``
+     - 86038 = QR code expired → regenerate (up to *max_refreshes*
+       times within the *max_wait* budget), then ``LoginExpired``
      - 0     = success → extract SESSDATA from ``data.url`` or ``Set-Cookie``
   4. Persist SESSDATA via ``session.save_session``
 """
@@ -103,6 +104,17 @@ def _show_qrcode(qr_url: str, on_qrcode=None) -> None:
         print(f"检测到非交互终端,请用手机打开以下链接登录:\n{qr_url}", file=sys.stderr)
 
 
+def _generate_qrcode(t: Transport) -> tuple[str, str]:
+    """Call ``/qrcode/generate`` and return ``(qr_url, qrcode_key)``."""
+    resp = t.request("GET", GENERATE_URL)
+    data = resp.json()
+    if data.get("code") != 0:
+        raise LoginExpired(
+            f"二维码生成失败: {data.get('message', '')}"
+        )
+    return data["data"]["url"], data["data"]["qrcode_key"]
+
+
 def login(
     transport: Transport | None = None,
     *,
@@ -110,6 +122,7 @@ def login(
     on_qrcode=None,
     poll_interval: float = 2.0,
     max_wait: float = 180.0,
+    max_refreshes: int = 2,
     _sleep=time.sleep,
 ) -> str:
     """Perform QR-code login and persist the session.
@@ -122,7 +135,11 @@ def login(
             is (re)generated; when provided it replaces the default
             terminal rendering.
         poll_interval: seconds between polls.
-        max_wait: overall login budget in seconds.
+        max_wait: overall login budget in seconds (shared across QR-code
+            refreshes, not per code).
+        max_refreshes: how many times an expired QR code (poll code 86038)
+            is regenerated before giving up; ``0`` restores the legacy
+            fail-immediately behaviour.
         _sleep: sleep function (injectable for tests).
 
     Returns the ``SESSDATA`` string on success.  Raises ``LoginExpired``
@@ -131,21 +148,13 @@ def login(
     t = transport or default_transport()
 
     # Step 1: generate QR code.
-    resp = t.request("GET", GENERATE_URL)
-    data = resp.json()
-    if data.get("code") != 0:
-        raise LoginExpired(
-            f"二维码生成失败: {data.get('message', '')}"
-        )
-
-    qr_url = data["data"]["url"]
-    qrcode_key = data["data"]["qrcode_key"]
-
+    qr_url, qrcode_key = _generate_qrcode(t)
     _show_qrcode(qr_url, on_qrcode)
     print("\n请使用 B 站手机客户端扫描上方二维码登录。", file=sys.stderr)
 
     # Step 2: poll until success, expiry, or timeout.
     elapsed = 0.0
+    refreshes = 0
     while elapsed < max_wait:
         resp = t.request("GET", POLL_URL, params={"qrcode_key": qrcode_key})
         data = resp.json()
@@ -186,6 +195,17 @@ def login(
             return sessdata
 
         if poll_code == 86038:
+            # QR code expired — regenerate within the global budget
+            # instead of failing outright (issue #7, P3).
+            if refreshes < max_refreshes:
+                refreshes += 1
+                print(
+                    "二维码已过期,已自动刷新,请重新扫码。",
+                    file=sys.stderr,
+                )
+                qr_url, qrcode_key = _generate_qrcode(t)
+                _show_qrcode(qr_url, on_qrcode)
+                continue
             raise LoginExpired("二维码已失效,请重新运行 bili_sub2txt login")
 
         if poll_code == 86090:

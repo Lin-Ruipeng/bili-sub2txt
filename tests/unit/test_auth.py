@@ -103,7 +103,8 @@ class TestLogin:
         })
 
         with pytest.raises(LoginExpired, match="二维码已失效"):
-            login(t, poll_interval=0.01, max_wait=5, _sleep=lambda _: None)
+            login(t, poll_interval=0.01, max_wait=5, max_refreshes=0,
+                  _sleep=lambda _: None)
 
     def test_generate_failure(self):
         t = FakeTransport()
@@ -243,3 +244,54 @@ class TestQrcodeCallback:
             poll_interval=0.01, max_wait=5, _sleep=lambda _: None,
         )
         assert "FAKE_QR_BLOCK" in capsys.readouterr().out
+
+
+class TestQrRefresh:
+    """Issue #7 (P3): expired QR codes are regenerated within the budget."""
+
+    def test_expired_qr_refreshes_and_succeeds(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
+        t = FakeTransport()
+        # Two distinct generate responses: initial + one refresh.
+        t.route_sequence(GENERATE_URL, [
+            {"body": {"code": 0, "data": {"url": "https://first.example.com", "qrcode_key": "key1"}}},
+            {"body": {"code": 0, "data": {"url": "https://second.example.com", "qrcode_key": "key2"}}},
+        ])
+        t.route_sequence(POLL_URL, [
+            {"body": {"code": 0, "data": {"code": 86038}}},
+            {"body": {"code": 0, "data": {
+                "code": 0,
+                "url": "https://api.bilibili.com/?SESSDATA=refreshed_long_sessdata_value",
+            }}},
+        ])
+
+        seen = []
+        sessdata = login(
+            t, on_qrcode=seen.append,
+            poll_interval=0.01, max_wait=5, _sleep=lambda _: None,
+        )
+        assert sessdata == "refreshed_long_sessdata_value"
+        # The callback (or --qr-out writer) must be re-triggered with the
+        # new QR url, otherwise programmatic callers hold a stale code.
+        assert seen == ["https://first.example.com", "https://second.example.com"]
+        # Refreshed poll must use the new key.
+        poll_calls = [c for c in t.calls if c.url == POLL_URL]
+        assert poll_calls[1].params == {"qrcode_key": "key2"}
+        assert "二维码已过期,已自动刷新" in capsys.readouterr().err
+
+    def test_refresh_budget_exhausted_raises(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
+        t = FakeTransport()
+        # 3 generates: initial + 2 refreshes (default max_refreshes=2).
+        t.route(GENERATE_URL, body={
+            "code": 0,
+            "data": {"url": "https://q.example.com", "qrcode_key": "key1"},
+        })
+        t.route_sequence(POLL_URL, [
+            {"body": {"code": 0, "data": {"code": 86038}}},
+            {"body": {"code": 0, "data": {"code": 86038}}},
+            {"body": {"code": 0, "data": {"code": 86038}}},
+        ])
+
+        with pytest.raises(LoginExpired, match="二维码已失效"):
+            login(t, poll_interval=0.01, max_wait=5, _sleep=lambda _: None)
