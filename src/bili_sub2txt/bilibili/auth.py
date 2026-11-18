@@ -2,7 +2,8 @@
 
 Flow:
   1. ``/qrcode/generate`` → ``{url, qrcode_key}``
-  2. Render QR code (``qrcode`` package if installed, else print URL)
+  2. Render QR code (``qrcode`` package if installed, else print URL);
+     callers may override rendering via the ``on_qrcode`` callback
   3. Poll ``/qrcode/poll`` every *poll_interval* seconds:
      - 86101 = waiting for scan
      - 86090 = scanned, awaiting confirmation
@@ -61,15 +62,47 @@ def _extract_sessdata_from_cookie_header(set_cookie: str | None) -> str | None:
     return None
 
 
+def _show_qrcode(qr_url: str, on_qrcode=None) -> None:
+    """Present *qr_url* to the user, preferring a caller-supplied callback.
+
+    Precedence (issue #7, P1):
+      1. ``on_qrcode`` callback — fully replaces terminal rendering, so
+         programmatic callers (CI, pipes, GUI/agent wrappers) get the
+         raw login URL;
+      2. interactive TTY — terminal block QR code;
+      3. non-TTY stdout — print the login URL to stderr instead of an
+         unusable block code.
+    """
+    if on_qrcode is not None:
+        on_qrcode(qr_url)
+        return
+    if sys.stdout.isatty():
+        print(render_qrcode(qr_url))
+    else:
+        print(f"检测到非交互终端,请用手机打开以下链接登录:\n{qr_url}", file=sys.stderr)
+
+
 def login(
     transport: Transport | None = None,
     *,
     on_status=None,
+    on_qrcode=None,
     poll_interval: float = 2.0,
     max_wait: float = 180.0,
     _sleep=time.sleep,
 ) -> str:
     """Perform QR-code login and persist the session.
+
+    Args:
+        transport: HTTP transport; defaults to ``default_transport()``.
+        on_status: optional ``callable(poll_code, poll_data)`` invoked on
+            every poll response.
+        on_qrcode: optional ``callable(qr_url)`` invoked whenever a QR code
+            is (re)generated; when provided it replaces the default
+            terminal rendering.
+        poll_interval: seconds between polls.
+        max_wait: overall login budget in seconds.
+        _sleep: sleep function (injectable for tests).
 
     Returns the ``SESSDATA`` string on success.  Raises ``LoginExpired``
     on timeout or QR-code expiry.
@@ -87,7 +120,7 @@ def login(
     qr_url = data["data"]["url"]
     qrcode_key = data["data"]["qrcode_key"]
 
-    print(render_qrcode(qr_url))
+    _show_qrcode(qr_url, on_qrcode)
     print("\n请使用 B 站手机客户端扫描上方二维码登录。", file=sys.stderr)
 
     # Step 2: poll until success, expiry, or timeout.

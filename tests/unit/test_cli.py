@@ -183,3 +183,47 @@ class TestSubcommandSkeleton:
         monkeypatch.setattr("bili_sub2txt.cli.auth.login", lambda *a, **kw: "fake_sess")
         code = run_main("login")
         assert code == 0
+
+
+class TestLoginQrOptions:
+    """Issue #7 (P1): --qr-out / --print-url programmatic outlets."""
+
+    def _fake_login_factory(self):
+        def fake_login(*args, **kwargs):
+            kwargs["on_qrcode"]("https://passport.example/qr?qrcode_key=abc")
+            return "fake_sess"
+        return fake_login
+
+    def test_login_default_passes_no_callback(self, monkeypatch):
+        captured = {}
+
+        def fake_login(*args, **kwargs):
+            captured.update(kwargs)
+            return "fake_sess"
+
+        monkeypatch.setattr("bili_sub2txt.cli.auth.login", fake_login)
+        assert run_main("login") == 0
+        assert captured.get("on_qrcode") is None
+
+    def test_login_qr_out_writes_svg(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setattr("bili_sub2txt.cli.auth.login", self._fake_login_factory())
+        svg = tmp_path / "login.svg"
+        code = run_main("login", "--qr-out", str(svg))
+        assert code == 0
+        assert svg.exists()
+        assert "<svg" in svg.read_text(encoding="utf-8")
+        assert "二维码已写入" in capsys.readouterr().err
+
+    def test_login_print_url_prints_url(self, monkeypatch, capsys):
+        monkeypatch.setattr("bili_sub2txt.cli.auth.login", self._fake_login_factory())
+        code = run_main("login", "--print-url")
+        assert code == 0
+        assert "https://passport.example/qr?qrcode_key=abc" in capsys.readouterr().out
+
+    def test_login_qr_out_bad_extension_fails_gracefully(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        monkeypatch.setattr("bili_sub2txt.cli.auth.login", self._fake_login_factory())
+        code = run_main("login", "--qr-out", str(tmp_path / "login.bmp"))
+        assert code == 1
+        assert "不支持的二维码输出格式" in capsys.readouterr().err

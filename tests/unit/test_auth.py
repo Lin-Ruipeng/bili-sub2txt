@@ -1,5 +1,7 @@
 """Tests for the QR-code login flow."""
 
+import sys
+
 import pytest
 
 from bili_sub2txt.bilibili.auth import (
@@ -147,3 +149,67 @@ class TestLogin:
               poll_interval=0.01, max_wait=5, _sleep=lambda _: None)
         assert 86101 in statuses
         assert 0 in statuses
+
+
+class TestQrcodeCallback:
+    """Issue #7 (P1): the QR url must have a programmatic way out."""
+
+    def _success_transport(self):
+        t = FakeTransport()
+        t.route(GENERATE_URL, body={
+            "code": 0,
+            "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
+        })
+        t.route_sequence(POLL_URL, [
+            {"body": {"code": 0, "data": {
+                "code": 0,
+                "url": "https://api.bilibili.com/?SESSDATA=this_is_a_long_ok_sessdata",
+            }}},
+        ])
+        return t
+
+    def test_on_qrcode_receives_url_and_skips_render(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
+        monkeypatch.setattr(
+            "bili_sub2txt.bilibili.auth.render_qrcode",
+            lambda url: (_ for _ in ()).throw(
+                AssertionError("render_qrcode must be skipped when on_qrcode is set")
+            ),
+        )
+        seen = []
+        login(
+            self._success_transport(),
+            on_qrcode=seen.append,
+            poll_interval=0.01, max_wait=5, _sleep=lambda _: None,
+        )
+        assert seen == ["https://q.example.com"]
+
+    def test_non_tty_stdout_falls_back_to_url(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
+        monkeypatch.setattr(sys.stdout, "isatty", lambda: False)
+        monkeypatch.setattr(
+            "bili_sub2txt.bilibili.auth.render_qrcode",
+            lambda url: (_ for _ in ()).throw(
+                AssertionError("render_qrcode must not run when stdout is not a TTY")
+            ),
+        )
+        login(
+            self._success_transport(),
+            poll_interval=0.01, max_wait=5, _sleep=lambda _: None,
+        )
+        assert "https://q.example.com" in capsys.readouterr().err
+
+    def test_tty_stdout_renders_blocks(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
+        monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+        monkeypatch.setattr(
+            "bili_sub2txt.bilibili.auth.render_qrcode",
+            lambda url: "FAKE_QR_BLOCK",
+        )
+        login(
+            self._success_transport(),
+            poll_interval=0.01, max_wait=5, _sleep=lambda _: None,
+        )
+        assert "FAKE_QR_BLOCK" in capsys.readouterr().out
