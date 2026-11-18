@@ -22,6 +22,7 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
+          cache-dependency-glob: pyproject.toml
 
       - name: Sync dependencies (dev + download)
         run: uv sync --all-extras
@@ -54,6 +55,7 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
+          cache-dependency-glob: pyproject.toml
 
       - name: Sync dependencies (dev + download)
         run: uv sync --all-extras --python ${{ matrix.python-version }}
