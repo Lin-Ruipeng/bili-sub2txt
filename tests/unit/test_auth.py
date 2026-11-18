@@ -95,6 +95,38 @@ class TestLogin:
         sessdata = login(t, poll_interval=0.01, max_wait=5, _sleep=lambda _: None)
         assert sessdata == "this_is_a_long_cookie_sessdata"
 
+    @pytest.mark.parametrize("source_url,cookie_header", [
+        # Credential comes from data.url query string.
+        ("https://api.bilibili.com/crossDomain?SESSDATA=secret_from_url_0123456789", None),
+        # Credential comes from the Set-Cookie header.
+        ("", "SESSDATA=secret_from_cookie_0123456789; Path=/; HttpOnly"),
+    ])
+    def test_success_output_does_not_leak_sessdata(
+        self, tmp_path, monkeypatch, capsys, source_url, cookie_header
+    ):
+        """Regression for issue #7 (P0): login output must never contain
+        the plaintext SESSDATA, regardless of the extraction source."""
+        monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
+        t = FakeTransport()
+        t.route(GENERATE_URL, body={
+            "code": 0,
+            "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
+        })
+        t.route_sequence(POLL_URL, [
+            {"body": {"code": 0, "data": {"code": 0, "url": source_url}}},
+        ])
+        if cookie_header:
+            t._sequences[POLL_URL][0]._headers["set-cookie"] = cookie_header
+
+        login(t, poll_interval=0.01, max_wait=5, _sleep=lambda _: None)
+
+        captured = capsys.readouterr()
+        combined = captured.out + captured.err
+        assert "secret_from_url_0123456789" not in combined
+        assert "secret_from_cookie_0123456789" not in combined
+        # Diagnostic summary is still present (source and length only).
+        assert "[debug] extract source=" in combined
+
     def test_on_status_callback(self, tmp_path, monkeypatch):
         monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
         statuses = []

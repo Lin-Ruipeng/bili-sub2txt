@@ -112,15 +112,11 @@ def login(
                 )
                 source = "Set-Cookie"
 
-            # Diagnostic output (always print on success for debugging).
+            # Diagnostic summary only — never print raw URLs or cookie
+            # headers: they may carry the SESSDATA credential in plaintext
+            # (see issue #7, P0).
             print(
-                f"[debug] extract source={source} len={len(sessdata or '')} "
-                f"url={data_url[:200]}",
-                file=sys.stderr,
-            )
-            set_cookie_raw = resp.header("Set-Cookie") or ""
-            print(
-                f"[debug] Set-Cookie={set_cookie_raw[:300]}",
+                f"[debug] extract source={source} len={len(sessdata or '')}",
                 file=sys.stderr,
             )
 
