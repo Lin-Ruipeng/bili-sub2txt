@@ -43,6 +43,12 @@ bili-sub2txt convert source_vtt/ target_txt/
 # 首次使用需扫码登录
 bili-sub2txt login
 
+# 无终端图形/自动化环境：把二维码写为图片文件（.png 需 qrcode[pil]，.svg 零依赖）
+bili-sub2txt login --qr-out login_qr.svg
+
+# 或仅打印登录 URL
+bili-sub2txt login --print-url
+
 # 通过 BV 号下载
 bili-sub2txt fetch BV1jJ4m1J7ba
 
@@ -84,7 +90,7 @@ bili-sub2txt --version    # 查看版本
 
 ### B 站下载（fetch + login）
 
-1. `login`：调用 B 站 Web 端扫码登录接口，终端渲染二维码，扫码成功后提取 `SESSDATA` 并保存到配置文件
+1. `login`：调用 B 站 Web 端扫码登录接口，终端渲染二维码，扫码成功后提取 `SESSDATA` 并保存到配置文件。支持 `--qr-out PATH`（二维码写为 `.png`/`.svg` 图片）与 `--print-url`（仅打印登录 URL）；stdout 为非交互终端（管道/CI）时自动退化为打印 URL。库层可通过 `auth.login(on_qrcode=callback)` 获取登录 URL 自行渲染
 2. `fetch`：解析 BV 号 → 获取视频信息 → 对每个分 P 请求字幕列表 → 选择轨道 → 下载 JSON → 转换为纯文本 → 写入文件
 3. 字幕时长与视频时长交叉校验（0.5–1.25 倍区间），超出则告警但不阻断
 
@@ -105,6 +111,7 @@ bili-sub2txt/
 │       ├── wbi.py           # WBI 签名
 │       ├── session.py       # SESSDATA 持久化
 │       ├── auth.py          # 扫码登录状态机
+│       ├── qr_output.py     # 登录二维码图片输出（--qr-out）
 │       ├── api.py           # 视频信息、字幕轨道、下载
 │       └── fetcher.py       # fetch 编排与时长校验
 ├── tests/
@@ -132,7 +139,7 @@ pytest -v           # 详细输出
 - `SESSDATA` 等同 B 站账号登录态，属于高敏凭据
 - 登录态存储在 `~/.config/bili-sub2txt/session.json`（Windows 为 `%APPDATA%/bili-sub2txt/session.json`），仅含 SESSDATA，尽力设 `0600` 权限
 - SESSDATA 只走 Cookie 请求头，绝不拼入 URL；日志和报错中自动脱敏
-- 配置文件权限在 Windows 上保护有限，建议注意目录 ACL
+- Windows 上 `session.json` 使用 DPAPI 加密（绑定当前用户与机器，文件被复制到其他机器无法解密）；DPAPI 不可用时回退明文并输出警告；旧版明文文件可透明读取，无需重新扫码
 
 ## 免责声明
 

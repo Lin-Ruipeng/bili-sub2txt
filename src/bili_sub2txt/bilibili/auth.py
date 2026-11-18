@@ -2,11 +2,13 @@
 
 Flow:
   1. ``/qrcode/generate`` → ``{url, qrcode_key}``
-  2. Render QR code (``qrcode`` package if installed, else print URL)
+  2. Render QR code (``qrcode`` package if installed, else print URL);
+     callers may override rendering via the ``on_qrcode`` callback
   3. Poll ``/qrcode/poll`` every *poll_interval* seconds:
      - 86101 = waiting for scan
      - 86090 = scanned, awaiting confirmation
-     - 86038 = QR code expired → ``LoginExpired``
+     - 86038 = QR code expired → regenerate (up to *max_refreshes*
+       times within the *max_wait* budget), then ``LoginExpired``
      - 0     = success → extract SESSDATA from ``data.url`` or ``Set-Cookie``
   4. Persist SESSDATA via ``session.save_session``
 """
@@ -24,19 +26,40 @@ POLL_URL = "https://passport.bilibili.com/x/passport-login/web/qrcode/poll"
 
 
 def render_qrcode(url: str) -> str:
-    """Render *url* as a terminal QR code, or fall back to printing the URL."""
+    """Render *url* as a terminal QR code, or fall back to printing the URL.
+
+    Issue #7 (P2) hardening:
+      - quiet-zone ``border=4`` (ISO/IEC 18004 recommendation, was 1);
+      - two module rows merged per text line via half-block characters,
+        halving the QR height so it fits in typical terminals;
+      - wrapped in an explicit black-on-white ANSI escape so the code
+        keeps the correct polarity on dark-themed terminals (plain
+        ``█`` on dark themes renders inverted and fails to scan).
+    """
     try:
         import qrcode
 
-        qr = qrcode.QRCode(border=1)
+        qr = qrcode.QRCode(border=4)
         qr.add_data(url)
         qr.make(fit=True)
         matrix = qr.get_matrix()
-        lines = [
-            "".join("  " if cell else "\u2588\u2588" for cell in row)
-            for row in matrix
-        ]
-        return "\n".join(lines)
+        # (top, bottom) module pair -> glyph; foreground = dark module.
+        glyphs = {
+            (True, True): "\u2588",   # █ full block
+            (True, False): "\u2580",  # ▀ upper half
+            (False, True): "\u2584",  # ▄ lower half
+            (False, False): " ",
+        }
+        width = len(matrix[0])
+        lines = []
+        for r in range(0, len(matrix), 2):
+            top = matrix[r]
+            bottom = matrix[r + 1] if r + 1 < len(matrix) else [False] * width
+            lines.append(
+                "".join(glyphs[(bool(t), bool(b))] for t, b in zip(top, bottom))
+            )
+        body = "\n".join(lines)
+        return f"\x1b[30;47m{body}\x1b[0m"
     except ImportError:
         return f"请用手机扫描以下链接登录:\n{url}"
 
@@ -61,15 +84,63 @@ def _extract_sessdata_from_cookie_header(set_cookie: str | None) -> str | None:
     return None
 
 
+def _show_qrcode(qr_url: str, on_qrcode=None) -> None:
+    """Present *qr_url* to the user, preferring a caller-supplied callback.
+
+    Precedence (issue #7, P1):
+      1. ``on_qrcode`` callback — fully replaces terminal rendering, so
+         programmatic callers (CI, pipes, GUI/agent wrappers) get the
+         raw login URL;
+      2. interactive TTY — terminal block QR code;
+      3. non-TTY stdout — print the login URL to stderr instead of an
+         unusable block code.
+    """
+    if on_qrcode is not None:
+        on_qrcode(qr_url)
+        return
+    if sys.stdout.isatty():
+        print(render_qrcode(qr_url))
+    else:
+        print(f"检测到非交互终端,请用手机打开以下链接登录:\n{qr_url}", file=sys.stderr)
+
+
+def _generate_qrcode(t: Transport) -> tuple[str, str]:
+    """Call ``/qrcode/generate`` and return ``(qr_url, qrcode_key)``."""
+    resp = t.request("GET", GENERATE_URL)
+    data = resp.json()
+    if data.get("code") != 0:
+        raise LoginExpired(
+            f"二维码生成失败: {data.get('message', '')}"
+        )
+    return data["data"]["url"], data["data"]["qrcode_key"]
+
+
 def login(
     transport: Transport | None = None,
     *,
     on_status=None,
+    on_qrcode=None,
     poll_interval: float = 2.0,
     max_wait: float = 180.0,
+    max_refreshes: int = 2,
     _sleep=time.sleep,
 ) -> str:
     """Perform QR-code login and persist the session.
+
+    Args:
+        transport: HTTP transport; defaults to ``default_transport()``.
+        on_status: optional ``callable(poll_code, poll_data)`` invoked on
+            every poll response.
+        on_qrcode: optional ``callable(qr_url)`` invoked whenever a QR code
+            is (re)generated; when provided it replaces the default
+            terminal rendering.
+        poll_interval: seconds between polls.
+        max_wait: overall login budget in seconds (shared across QR-code
+            refreshes, not per code).
+        max_refreshes: how many times an expired QR code (poll code 86038)
+            is regenerated before giving up; ``0`` restores the legacy
+            fail-immediately behaviour.
+        _sleep: sleep function (injectable for tests).
 
     Returns the ``SESSDATA`` string on success.  Raises ``LoginExpired``
     on timeout or QR-code expiry.
@@ -77,21 +148,13 @@ def login(
     t = transport or default_transport()
 
     # Step 1: generate QR code.
-    resp = t.request("GET", GENERATE_URL)
-    data = resp.json()
-    if data.get("code") != 0:
-        raise LoginExpired(
-            f"二维码生成失败: {data.get('message', '')}"
-        )
-
-    qr_url = data["data"]["url"]
-    qrcode_key = data["data"]["qrcode_key"]
-
-    print(render_qrcode(qr_url))
+    qr_url, qrcode_key = _generate_qrcode(t)
+    _show_qrcode(qr_url, on_qrcode)
     print("\n请使用 B 站手机客户端扫描上方二维码登录。", file=sys.stderr)
 
     # Step 2: poll until success, expiry, or timeout.
     elapsed = 0.0
+    refreshes = 0
     while elapsed < max_wait:
         resp = t.request("GET", POLL_URL, params={"qrcode_key": qrcode_key})
         data = resp.json()
@@ -112,15 +175,11 @@ def login(
                 )
                 source = "Set-Cookie"
 
-            # Diagnostic output (always print on success for debugging).
+            # Diagnostic summary only — never print raw URLs or cookie
+            # headers: they may carry the SESSDATA credential in plaintext
+            # (see issue #7, P0).
             print(
-                f"[debug] extract source={source} len={len(sessdata or '')} "
-                f"url={data_url[:200]}",
-                file=sys.stderr,
-            )
-            set_cookie_raw = resp.header("Set-Cookie") or ""
-            print(
-                f"[debug] Set-Cookie={set_cookie_raw[:300]}",
+                f"[debug] extract source={source} len={len(sessdata or '')}",
                 file=sys.stderr,
             )
 
@@ -136,6 +195,17 @@ def login(
             return sessdata
 
         if poll_code == 86038:
+            # QR code expired — regenerate within the global budget
+            # instead of failing outright (issue #7, P3).
+            if refreshes < max_refreshes:
+                refreshes += 1
+                print(
+                    "二维码已过期,已自动刷新,请重新扫码。",
+                    file=sys.stderr,
+                )
+                qr_url, qrcode_key = _generate_qrcode(t)
+                _show_qrcode(qr_url, on_qrcode)
+                continue
             raise LoginExpired("二维码已失效,请重新运行 bili_sub2txt login")
 
         if poll_code == 86090:

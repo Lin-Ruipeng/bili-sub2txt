@@ -1,5 +1,7 @@
 """Tests for the QR-code login flow."""
 
+import sys
+
 import pytest
 
 from bili_sub2txt.bilibili.auth import (
@@ -39,6 +41,36 @@ class TestRenderQrcode:
         assert isinstance(result, str)
         assert len(result) > 0
 
+    def test_fixed_polarity_ansi_wrapping(self):
+        """Dark-theme terminals need explicit black-on-white polarity (#7 P2)."""
+        result = render_qrcode("https://example.com")
+        assert result.startswith("\x1b[30;47m")
+        assert result.endswith("\x1b[0m")
+
+    def test_half_block_glyphs_and_quiet_zone(self):
+        """Only half/full blocks and spaces; quiet zone yields blank edges."""
+        qrcode = pytest.importorskip("qrcode")
+        result = render_qrcode("https://example.com")
+        body = result[len("\x1b[30;47m"):-len("\x1b[0m")]
+        lines = body.split("\n")
+        allowed = set("\u2588\u2580\u2584 ")
+        for line in lines:
+            assert set(line) <= allowed
+            assert line.startswith(" ") and line.endswith(" ")  # quiet zone
+        # Two module rows merge per line: ceil(modules / 2) lines, and each
+        # line is exactly one character wide per module column.
+        qr = qrcode.QRCode(border=4)
+        qr.add_data("https://example.com")
+        qr.make(fit=True)
+        matrix = qr.get_matrix()
+        assert len(lines) == (len(matrix) + 1) // 2
+        assert all(len(line) == len(matrix[0]) for line in lines)
+
+    def test_no_qrcode_library_falls_back_to_url(self, monkeypatch):
+        monkeypatch.setitem(sys.modules, "qrcode", None)
+        result = render_qrcode("https://example.com/login?k=42")
+        assert "https://example.com/login?k=42" in result
+
 
 class TestLogin:
     def test_success_from_url(self, tmp_path, monkeypatch):
@@ -71,7 +103,8 @@ class TestLogin:
         })
 
         with pytest.raises(LoginExpired, match="二维码已失效"):
-            login(t, poll_interval=0.01, max_wait=5, _sleep=lambda _: None)
+            login(t, poll_interval=0.01, max_wait=5, max_refreshes=0,
+                  _sleep=lambda _: None)
 
     def test_generate_failure(self):
         t = FakeTransport()
@@ -95,6 +128,38 @@ class TestLogin:
         sessdata = login(t, poll_interval=0.01, max_wait=5, _sleep=lambda _: None)
         assert sessdata == "this_is_a_long_cookie_sessdata"
 
+    @pytest.mark.parametrize("source_url,cookie_header", [
+        # Credential comes from data.url query string.
+        ("https://api.bilibili.com/crossDomain?SESSDATA=secret_from_url_0123456789", None),
+        # Credential comes from the Set-Cookie header.
+        ("", "SESSDATA=secret_from_cookie_0123456789; Path=/; HttpOnly"),
+    ])
+    def test_success_output_does_not_leak_sessdata(
+        self, tmp_path, monkeypatch, capsys, source_url, cookie_header
+    ):
+        """Regression for issue #7 (P0): login output must never contain
+        the plaintext SESSDATA, regardless of the extraction source."""
+        monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
+        t = FakeTransport()
+        t.route(GENERATE_URL, body={
+            "code": 0,
+            "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
+        })
+        t.route_sequence(POLL_URL, [
+            {"body": {"code": 0, "data": {"code": 0, "url": source_url}}},
+        ])
+        if cookie_header:
+            t._sequences[POLL_URL][0]._headers["set-cookie"] = cookie_header
+
+        login(t, poll_interval=0.01, max_wait=5, _sleep=lambda _: None)
+
+        captured = capsys.readouterr()
+        combined = captured.out + captured.err
+        assert "secret_from_url_0123456789" not in combined
+        assert "secret_from_cookie_0123456789" not in combined
+        # Diagnostic summary is still present (source and length only).
+        assert "[debug] extract source=" in combined
+
     def test_on_status_callback(self, tmp_path, monkeypatch):
         monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
         statuses = []
@@ -115,3 +180,118 @@ class TestLogin:
               poll_interval=0.01, max_wait=5, _sleep=lambda _: None)
         assert 86101 in statuses
         assert 0 in statuses
+
+
+class TestQrcodeCallback:
+    """Issue #7 (P1): the QR url must have a programmatic way out."""
+
+    def _success_transport(self):
+        t = FakeTransport()
+        t.route(GENERATE_URL, body={
+            "code": 0,
+            "data": {"url": "https://q.example.com", "qrcode_key": "key123"},
+        })
+        t.route_sequence(POLL_URL, [
+            {"body": {"code": 0, "data": {
+                "code": 0,
+                "url": "https://api.bilibili.com/?SESSDATA=this_is_a_long_ok_sessdata",
+            }}},
+        ])
+        return t
+
+    def test_on_qrcode_receives_url_and_skips_render(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
+        monkeypatch.setattr(
+            "bili_sub2txt.bilibili.auth.render_qrcode",
+            lambda url: (_ for _ in ()).throw(
+                AssertionError("render_qrcode must be skipped when on_qrcode is set")
+            ),
+        )
+        seen = []
+        login(
+            self._success_transport(),
+            on_qrcode=seen.append,
+            poll_interval=0.01, max_wait=5, _sleep=lambda _: None,
+        )
+        assert seen == ["https://q.example.com"]
+
+    def test_non_tty_stdout_falls_back_to_url(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
+        monkeypatch.setattr(sys.stdout, "isatty", lambda: False)
+        monkeypatch.setattr(
+            "bili_sub2txt.bilibili.auth.render_qrcode",
+            lambda url: (_ for _ in ()).throw(
+                AssertionError("render_qrcode must not run when stdout is not a TTY")
+            ),
+        )
+        login(
+            self._success_transport(),
+            poll_interval=0.01, max_wait=5, _sleep=lambda _: None,
+        )
+        assert "https://q.example.com" in capsys.readouterr().err
+
+    def test_tty_stdout_renders_blocks(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
+        monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+        monkeypatch.setattr(
+            "bili_sub2txt.bilibili.auth.render_qrcode",
+            lambda url: "FAKE_QR_BLOCK",
+        )
+        login(
+            self._success_transport(),
+            poll_interval=0.01, max_wait=5, _sleep=lambda _: None,
+        )
+        assert "FAKE_QR_BLOCK" in capsys.readouterr().out
+
+
+class TestQrRefresh:
+    """Issue #7 (P3): expired QR codes are regenerated within the budget."""
+
+    def test_expired_qr_refreshes_and_succeeds(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
+        t = FakeTransport()
+        # Two distinct generate responses: initial + one refresh.
+        t.route_sequence(GENERATE_URL, [
+            {"body": {"code": 0, "data": {"url": "https://first.example.com", "qrcode_key": "key1"}}},
+            {"body": {"code": 0, "data": {"url": "https://second.example.com", "qrcode_key": "key2"}}},
+        ])
+        t.route_sequence(POLL_URL, [
+            {"body": {"code": 0, "data": {"code": 86038}}},
+            {"body": {"code": 0, "data": {
+                "code": 0,
+                "url": "https://api.bilibili.com/?SESSDATA=refreshed_long_sessdata_value",
+            }}},
+        ])
+
+        seen = []
+        sessdata = login(
+            t, on_qrcode=seen.append,
+            poll_interval=0.01, max_wait=5, _sleep=lambda _: None,
+        )
+        assert sessdata == "refreshed_long_sessdata_value"
+        # The callback (or --qr-out writer) must be re-triggered with the
+        # new QR url, otherwise programmatic callers hold a stale code.
+        assert seen == ["https://first.example.com", "https://second.example.com"]
+        # Refreshed poll must use the new key.
+        poll_calls = [c for c in t.calls if c.url == POLL_URL]
+        assert poll_calls[1].params == {"qrcode_key": "key2"}
+        assert "二维码已过期,已自动刷新" in capsys.readouterr().err
+
+    def test_refresh_budget_exhausted_raises(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("BILI_SUB2TXT_SESSION_DIR", str(tmp_path))
+        t = FakeTransport()
+        # 3 generates: initial + 2 refreshes (default max_refreshes=2).
+        t.route(GENERATE_URL, body={
+            "code": 0,
+            "data": {"url": "https://q.example.com", "qrcode_key": "key1"},
+        })
+        t.route_sequence(POLL_URL, [
+            {"body": {"code": 0, "data": {"code": 86038}}},
+            {"body": {"code": 0, "data": {"code": 86038}}},
+            {"body": {"code": 0, "data": {"code": 86038}}},
+        ])
+
+        with pytest.raises(LoginExpired, match="二维码已失效"):
+            login(t, poll_interval=0.01, max_wait=5, _sleep=lambda _: None)

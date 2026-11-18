@@ -6,6 +6,7 @@ from pathlib import Path
 
 from bili_sub2txt import __version__
 from bili_sub2txt.bilibili import auth, fetcher
+from bili_sub2txt.bilibili.qr_output import QrOutputError, write_qr_image
 from bili_sub2txt.bilibili.session import get_sessdata
 from bili_sub2txt.converter import convert_vtt
 from bili_sub2txt.errors import EXIT_GENERIC, EXIT_LOGIN, EXIT_OK, LoginExpired
@@ -41,7 +42,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_fetch.add_argument("--lang", default=None, help="指定字幕语言（如 zh-Hans）")
 
     # login — QR-code login.
-    sub.add_parser("login", help="扫码登录 B 站")
+    p_login = sub.add_parser("login", help="扫码登录 B 站")
+    p_login.add_argument(
+        "--qr-out",
+        type=Path,
+        default=None,
+        metavar="PATH",
+        help="将登录二维码写为图片文件（按扩展名 .png/.svg；PNG 需 qrcode[pil]）",
+    )
+    p_login.add_argument(
+        "--print-url",
+        action="store_true",
+        help="仅打印登录 URL 而不在终端渲染二维码（适合管道/自动化环境）",
+    )
 
     return parser
 
@@ -115,12 +128,21 @@ def cmd_fetch(target: str, output_dir: Path, lang: str | None) -> int:
     )
 
 
-def cmd_login() -> int:
+def cmd_login(qr_out: Path | None = None, print_url: bool = False) -> int:
     """Run QR-code login and persist the session."""
+    on_qrcode = None
+    if qr_out is not None:
+        def on_qrcode(qr_url: str) -> None:
+            write_qr_image(qr_url, qr_out)
+            print(f"二维码已写入 {qr_out}", file=sys.stderr)
+    elif print_url:
+        def on_qrcode(qr_url: str) -> None:
+            print(f"登录链接: {qr_url}")
+
     try:
-        auth.login()
+        auth.login(on_qrcode=on_qrcode)
         return EXIT_OK
-    except LoginExpired as e:
+    except (LoginExpired, QrOutputError) as e:
         print(f"登录失败: {e}", file=sys.stderr)
         return EXIT_GENERIC
     except Exception as e:
@@ -146,7 +168,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "fetch":
         return cmd_fetch(args.target, args.output, args.lang)
     if args.command == "login":
-        return cmd_login()
+        return cmd_login(args.qr_out, args.print_url)
 
     return 2  # Unreachable (subparsers required=True).
 
