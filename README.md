@@ -139,7 +139,7 @@ pytest -v           # 详细输出
 - `SESSDATA` 等同 B 站账号登录态，属于高敏凭据
 - 登录态存储在 `~/.config/bili-sub2txt/session.json`（Windows 为 `%APPDATA%/bili-sub2txt/session.json`），仅含 SESSDATA，尽力设 `0600` 权限
 - SESSDATA 只走 Cookie 请求头，绝不拼入 URL；日志和报错中自动脱敏
-- 配置文件权限在 Windows 上保护有限，建议注意目录 ACL
+- Windows 上 `session.json` 使用 DPAPI 加密（绑定当前用户与机器，文件被复制到其他机器无法解密）；DPAPI 不可用时回退明文并输出警告；旧版明文文件可透明读取，无需重新扫码
 
 ## 免责声明
 
