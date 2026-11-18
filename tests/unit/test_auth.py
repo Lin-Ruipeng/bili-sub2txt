@@ -41,6 +41,36 @@ class TestRenderQrcode:
         assert isinstance(result, str)
         assert len(result) > 0
 
+    def test_fixed_polarity_ansi_wrapping(self):
+        """Dark-theme terminals need explicit black-on-white polarity (#7 P2)."""
+        result = render_qrcode("https://example.com")
+        assert result.startswith("\x1b[30;47m")
+        assert result.endswith("\x1b[0m")
+
+    def test_half_block_glyphs_and_quiet_zone(self):
+        """Only half/full blocks and spaces; quiet zone yields blank edges."""
+        qrcode = pytest.importorskip("qrcode")
+        result = render_qrcode("https://example.com")
+        body = result[len("\x1b[30;47m"):-len("\x1b[0m")]
+        lines = body.split("\n")
+        allowed = set("\u2588\u2580\u2584 ")
+        for line in lines:
+            assert set(line) <= allowed
+            assert line.startswith(" ") and line.endswith(" ")  # quiet zone
+        # Two module rows merge per line: ceil(modules / 2) lines, and each
+        # line is exactly one character wide per module column.
+        qr = qrcode.QRCode(border=4)
+        qr.add_data("https://example.com")
+        qr.make(fit=True)
+        matrix = qr.get_matrix()
+        assert len(lines) == (len(matrix) + 1) // 2
+        assert all(len(line) == len(matrix[0]) for line in lines)
+
+    def test_no_qrcode_library_falls_back_to_url(self, monkeypatch):
+        monkeypatch.setitem(sys.modules, "qrcode", None)
+        result = render_qrcode("https://example.com/login?k=42")
+        assert "https://example.com/login?k=42" in result
+
 
 class TestLogin:
     def test_success_from_url(self, tmp_path, monkeypatch):

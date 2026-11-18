@@ -25,19 +25,40 @@ POLL_URL = "https://passport.bilibili.com/x/passport-login/web/qrcode/poll"
 
 
 def render_qrcode(url: str) -> str:
-    """Render *url* as a terminal QR code, or fall back to printing the URL."""
+    """Render *url* as a terminal QR code, or fall back to printing the URL.
+
+    Issue #7 (P2) hardening:
+      - quiet-zone ``border=4`` (ISO/IEC 18004 recommendation, was 1);
+      - two module rows merged per text line via half-block characters,
+        halving the QR height so it fits in typical terminals;
+      - wrapped in an explicit black-on-white ANSI escape so the code
+        keeps the correct polarity on dark-themed terminals (plain
+        ``█`` on dark themes renders inverted and fails to scan).
+    """
     try:
         import qrcode
 
-        qr = qrcode.QRCode(border=1)
+        qr = qrcode.QRCode(border=4)
         qr.add_data(url)
         qr.make(fit=True)
         matrix = qr.get_matrix()
-        lines = [
-            "".join("  " if cell else "\u2588\u2588" for cell in row)
-            for row in matrix
-        ]
-        return "\n".join(lines)
+        # (top, bottom) module pair -> glyph; foreground = dark module.
+        glyphs = {
+            (True, True): "\u2588",   # █ full block
+            (True, False): "\u2580",  # ▀ upper half
+            (False, True): "\u2584",  # ▄ lower half
+            (False, False): " ",
+        }
+        width = len(matrix[0])
+        lines = []
+        for r in range(0, len(matrix), 2):
+            top = matrix[r]
+            bottom = matrix[r + 1] if r + 1 < len(matrix) else [False] * width
+            lines.append(
+                "".join(glyphs[(bool(t), bool(b))] for t, b in zip(top, bottom))
+            )
+        body = "\n".join(lines)
+        return f"\x1b[30;47m{body}\x1b[0m"
     except ImportError:
         return f"请用手机扫描以下链接登录:\n{url}"
 
